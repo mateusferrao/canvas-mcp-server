@@ -1,0 +1,26 @@
+[
+  {
+    "id": 201,
+    "name": "Trabalho 1 — Análise de Requisitos",
+    "description": "<p>Elaborar documento de requisitos</p>",
+    "due_at": "2024-06-15T23:59:00Z",
+    "points_possible": 10,
+    "submission_types": ["online_upload", "online_text_entry"],
+    "workflow_state": "published",
+    "course_id": 101,
+    "html_url": "https://pucminas.instructure.com/courses/101/assignments/201",
+    "has_submitted_submissions": false
+  },
+  {
+    "id": 202,
+    "name": "Prova P1",
+    "description": null,
+    "due_at": "2024-07-10T18:00:00Z",
+    "points_possible": 20,
+    "submission_types": ["none"],
+    "workflow_state": "published",
+    "course_id": 101,
+    "html_url": "https://pucminas.instructure.com/courses/101/assignments/202",
+    "has_submitted_submissions": false
+  }
+]

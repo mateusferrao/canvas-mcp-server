@@ -1,0 +1,36 @@
+[
+  {
+    "id": 101,
+    "name": "Engenharia de Software",
+    "course_code": "ES-2024",
+    "workflow_state": "available",
+    "start_at": "2024-02-01T00:00:00Z",
+    "end_at": "2024-12-01T00:00:00Z",
+    "enrollment_term_id": 1,
+    "enrollments": [
+      {
+        "type": "student",
+        "enrollment_state": "active",
+        "computed_current_grade": "A",
+        "computed_current_score": 90.5
+      }
+    ]
+  },
+  {
+    "id": 102,
+    "name": "Cálculo II",
+    "course_code": "CALC2-2024",
+    "workflow_state": "available",
+    "start_at": "2024-02-01T00:00:00Z",
+    "end_at": "2024-12-01T00:00:00Z",
+    "enrollment_term_id": 1,
+    "enrollments": [
+      {
+        "type": "student",
+        "enrollment_state": "active",
+        "computed_current_grade": "B+",
+        "computed_current_score": 82.0
+      }
+    ]
+  }
+]

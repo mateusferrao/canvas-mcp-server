@@ -1,0 +1,21 @@
+[
+  {
+    "type": "submitting",
+    "assignment": {
+      "id": 203,
+      "name": "Exercício de Cálculo 5",
+      "description": null,
+      "due_at": "2024-06-20T23:59:00Z",
+      "points_possible": 5,
+      "submission_types": ["online_text_entry"],
+      "workflow_state": "published",
+      "course_id": 102,
+      "html_url": "https://pucminas.instructure.com/courses/102/assignments/203",
+      "has_submitted_submissions": false
+    },
+    "context_type": "Course",
+    "course_id": 102,
+    "context_name": "Cálculo II",
+    "html_url": "https://pucminas.instructure.com/courses/102/assignments/203"
+  }
+]

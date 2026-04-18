@@ -1,0 +1,13 @@
+{
+  "id": 301,
+  "assignment_id": 201,
+  "user_id": 999,
+  "submitted_at": "2024-06-14T20:30:00Z",
+  "score": 9.5,
+  "grade": "9,50",
+  "workflow_state": "graded",
+  "submission_type": "online_text_entry",
+  "body": "<p>Documento de requisitos elaborado...</p>",
+  "late": false,
+  "missing": false
+}
