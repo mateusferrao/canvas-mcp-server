@@ -14,9 +14,9 @@ afterAll(async () => {
 });
 
 describe("MCP server — tools listing", () => {
-  it("expõe 13 tools registradas", async () => {
+  it("expõe 30 tools registradas (13 Phase 1 + 17 Phase 2)", async () => {
     const { tools } = await client.listTools();
-    expect(tools).toHaveLength(13);
+    expect(tools).toHaveLength(30);
   });
 
   it("todas as tools têm name, description e inputSchema", async () => {

@@ -19,10 +19,20 @@ export interface CanvasCourse {
 }
 
 export interface CanvasEnrollment {
+  id?: number;
   type: string;
   enrollment_state: string;
+  course_id?: number;
   computed_current_grade?: string;
   computed_current_score?: number;
+  computed_final_grade?: string;
+  computed_final_score?: number;
+  grades?: {
+    current_grade?: string;
+    current_score?: number;
+    final_grade?: string;
+    final_score?: number;
+  };
 }
 
 export interface CanvasAssignment {
@@ -96,6 +106,144 @@ export interface CanvasModule {
   workflow_state: string;
   items_count: number;
   items_url: string;
+  unlock_at?: string;
+  state?: string;
+  completed_at?: string;
+  items?: CanvasModuleItem[];
+}
+
+export interface CanvasModuleItem {
+  id: number;
+  module_id: number;
+  position: number;
+  title: string;
+  type: string;
+  content_id?: number;
+  html_url: string;
+  url?: string;
+  page_url?: string;
+  external_url?: string;
+  completion_requirement?: {
+    type: string;
+    min_score?: number;
+    completed?: boolean;
+  };
+  content_details?: {
+    points_possible?: number;
+    due_at?: string;
+    unlock_at?: string;
+    lock_at?: string;
+  };
+}
+
+export interface CanvasPage {
+  page_id: number;
+  url: string;
+  title: string;
+  body?: string;
+  published: boolean;
+  front_page: boolean;
+  created_at: string;
+  updated_at: string;
+  locked_for_user?: boolean;
+}
+
+export interface CanvasDiscussionTopic {
+  id: number;
+  title: string;
+  message?: string;
+  html_url: string;
+  posted_at?: string;
+  last_reply_at?: string;
+  published: boolean;
+  locked: boolean;
+  discussion_type: string;
+  author?: { id: number; display_name: string; avatar_image_url?: string };
+  permissions?: { reply?: boolean; attach?: boolean };
+  attachments?: unknown[];
+}
+
+export interface CanvasDiscussionEntry {
+  id: number;
+  user_id: number;
+  user_name?: string;
+  message: string;
+  read_state: string;
+  created_at: string;
+  updated_at: string;
+  attachment?: unknown;
+  replies?: CanvasDiscussionEntry[];
+}
+
+export interface CanvasConversation {
+  id: number;
+  subject: string;
+  workflow_state: string;
+  last_message?: string;
+  last_message_at?: string;
+  message_count: number;
+  subscribed: boolean;
+  private: boolean;
+  starred: boolean;
+  properties?: string[];
+  audience?: number[];
+  participants?: CanvasConversationParticipant[];
+  messages?: CanvasConversationMessage[];
+}
+
+export interface CanvasConversationParticipant {
+  id: number;
+  name: string;
+  avatar_url?: string;
+}
+
+export interface CanvasConversationMessage {
+  id: number;
+  author_id: number;
+  body: string;
+  created_at: string;
+  attachments?: unknown[];
+}
+
+export interface CanvasFile {
+  id: number;
+  display_name: string;
+  filename: string;
+  url: string;
+  "content-type": string;
+  size: number;
+  folder_id: number;
+  created_at: string;
+}
+
+export interface CanvasPlannerNote {
+  id: number;
+  title: string;
+  description?: string;
+  user_id: number;
+  workflow_state: string;
+  course_id?: number;
+  todo_date: string;
+  linked_object_type?: string;
+  linked_object_id?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CanvasQuiz {
+  id: number;
+  title: string;
+  html_url: string;
+  description?: string;
+  quiz_type: string;
+  time_limit?: number;
+  allowed_attempts: number;
+  points_possible?: number;
+  due_at?: string;
+  lock_at?: string;
+  unlock_at?: string;
+  published: boolean;
+  question_count: number;
 }
 
 export interface PaginatedResponse<T> {

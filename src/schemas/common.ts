@@ -35,3 +35,50 @@ export const AssignmentIdSchema = z
   .int()
   .positive()
   .describe("ID numérico da tarefa no Canvas");
+
+export const ModuleIdSchema = z
+  .number()
+  .int()
+  .positive()
+  .describe("ID numérico do módulo no Canvas");
+
+export const ModuleItemIdSchema = z
+  .number()
+  .int()
+  .positive()
+  .describe("ID numérico do item de módulo no Canvas");
+
+export const TopicIdSchema = z
+  .number()
+  .int()
+  .positive()
+  .describe("ID numérico do tópico de discussão no Canvas");
+
+export const EntryIdSchema = z
+  .number()
+  .int()
+  .positive()
+  .describe("ID numérico da entrada de discussão no Canvas");
+
+export const ConversationIdSchema = z
+  .number()
+  .int()
+  .positive()
+  .describe("ID numérico da conversa no Canvas");
+
+export const PageIdOrUrlSchema = z
+  .string()
+  .min(1)
+  .describe("URL slug ou ID numérico da página Canvas (ex: 'introducao-ao-curso' ou '42')");
+
+export const QuizIdSchema = z
+  .number()
+  .int()
+  .positive()
+  .describe("ID numérico do quiz no Canvas");
+
+export const PlannerNoteIdSchema = z
+  .number()
+  .int()
+  .positive()
+  .describe("ID numérico da nota do planejador no Canvas");

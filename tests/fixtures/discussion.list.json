@@ -1,0 +1,25 @@
+[
+  {
+    "id": 601,
+    "title": "Dúvidas sobre o Trabalho 1",
+    "message": "<p>Poste suas dúvidas sobre o Trabalho 1 aqui.</p>",
+    "html_url": "https://pucminas.instructure.com/courses/101/discussion_topics/601",
+    "posted_at": "2024-05-01T09:00:00Z",
+    "last_reply_at": "2024-05-10T14:30:00Z",
+    "published": true,
+    "locked": false,
+    "discussion_type": "side_comment",
+    "author": { "id": 1, "display_name": "Prof. Carlos" }
+  },
+  {
+    "id": 602,
+    "title": "Fórum Geral",
+    "message": "<p>Espaço para discussões gerais da disciplina.</p>",
+    "html_url": "https://pucminas.instructure.com/courses/101/discussion_topics/602",
+    "posted_at": "2024-02-15T10:00:00Z",
+    "published": true,
+    "locked": false,
+    "discussion_type": "threaded",
+    "author": { "id": 1, "display_name": "Prof. Carlos" }
+  }
+]

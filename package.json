@@ -21,10 +21,12 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.6.1",
     "axios": "^1.7.9",
+    "turndown": "^7.2.4",
     "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
+    "@types/turndown": "^5.0.6",
     "@vitest/coverage-v8": "^2.1.8",
     "msw": "^2.6.4",
     "tsx": "^4.19.2",

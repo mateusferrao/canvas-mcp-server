@@ -1,0 +1,11 @@
+{
+  "page_id": 501,
+  "url": "introducao-ao-curso",
+  "title": "Introdução ao Curso",
+  "body": "<h2>Bem-vindo!</h2><p>Esta é a página de introdução ao curso de <strong>Engenharia de Software</strong>.</p><ul><li>Objetivo 1</li><li>Objetivo 2</li></ul>",
+  "published": true,
+  "front_page": true,
+  "created_at": "2024-02-01T08:00:00Z",
+  "updated_at": "2024-03-15T10:00:00Z",
+  "locked_for_user": false
+}

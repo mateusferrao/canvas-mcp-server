@@ -3,10 +3,21 @@ import type {
   CanvasAssignment,
   CanvasCalendarEvent,
   CanvasCourse,
+  CanvasDiscussionEntry,
+  CanvasDiscussionTopic,
+  CanvasConversation,
+  CanvasFile,
+  CanvasModule,
+  CanvasModuleItem,
+  CanvasPage,
+  CanvasPlannerNote,
+  CanvasQuiz,
+  CanvasEnrollment,
   CanvasSubmission,
   CanvasTodoItem,
   CanvasUser,
 } from "../types.js";
+import { htmlToMarkdown } from "./markdown.js";
 
 export enum ResponseFormat {
   MARKDOWN = "markdown",
@@ -270,6 +281,360 @@ export class UserJsonFormatter implements Formatter<CanvasUser> {
   }
 
   formatList(items: CanvasUser[], total?: number): string {
+    return JSON.stringify({ total: total ?? items.length, items }, null, 2);
+  }
+}
+
+// ─── Module formatters ───────────────────────────────────────────────────────
+
+export class ModuleMarkdownFormatter implements Formatter<CanvasModule> {
+  format(m: CanvasModule): string {
+    const state = m.state ? ` — ${m.state}` : "";
+    const lines = [
+      `## ${m.name} (ID: ${m.id})`,
+      `- **Posição**: ${m.position}`,
+      `- **Estado**: ${m.workflow_state}${state}`,
+      `- **Itens**: ${m.items_count}`,
+      m.unlock_at ? `- **Disponível a partir de**: ${formatDate(m.unlock_at)}` : "",
+      m.completed_at ? `- **Concluído em**: ${formatDate(m.completed_at)}` : "",
+    ].filter(Boolean);
+    if (m.items?.length) {
+      lines.push("", "**Itens:**");
+      for (const item of m.items) {
+        lines.push(`  - [${item.title}](${item.html_url}) — ${item.type}`);
+      }
+    }
+    return lines.join("\n");
+  }
+
+  formatList(items: CanvasModule[], total?: number): string {
+    if (!items.length) return "Nenhum módulo encontrado.";
+    const header = `# Módulos (${total ?? items.length})\n\n`;
+    return header + items.map((m) => this.format(m)).join("\n\n---\n\n");
+  }
+}
+
+export class ModuleJsonFormatter implements Formatter<CanvasModule> {
+  format(m: CanvasModule): string {
+    return JSON.stringify(m, null, 2);
+  }
+
+  formatList(items: CanvasModule[], total?: number): string {
+    return JSON.stringify({ total: total ?? items.length, items }, null, 2);
+  }
+}
+
+export class ModuleItemMarkdownFormatter implements Formatter<CanvasModuleItem> {
+  format(item: CanvasModuleItem): string {
+    const req = item.completion_requirement;
+    const done = req?.completed ? "✓" : "○";
+    return [
+      `## ${done} ${item.title} (ID: ${item.id})`,
+      `- **Tipo**: ${item.type}`,
+      `- **Link**: ${item.html_url}`,
+      req ? `- **Requisito**: ${req.type}${req.completed ? " (concluído)" : " (pendente)"}` : "",
+      item.content_details?.due_at
+        ? `- **Prazo**: ${formatDate(item.content_details.due_at)}`
+        : "",
+      item.content_details?.points_possible != null
+        ? `- **Pontos**: ${item.content_details.points_possible}`
+        : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+  }
+
+  formatList(items: CanvasModuleItem[], total?: number): string {
+    if (!items.length) return "Nenhum item de módulo encontrado.";
+    const header = `# Itens do Módulo (${total ?? items.length})\n\n`;
+    return header + items.map((i) => this.format(i)).join("\n\n---\n\n");
+  }
+}
+
+export class ModuleItemJsonFormatter implements Formatter<CanvasModuleItem> {
+  format(item: CanvasModuleItem): string {
+    return JSON.stringify(item, null, 2);
+  }
+
+  formatList(items: CanvasModuleItem[], total?: number): string {
+    return JSON.stringify({ total: total ?? items.length, items }, null, 2);
+  }
+}
+
+// ─── Page formatters ─────────────────────────────────────────────────────────
+
+export class PageMarkdownFormatter implements Formatter<CanvasPage> {
+  format(p: CanvasPage): string {
+    const bodyMd = p.body ? "\n\n" + htmlToMarkdown(p.body) : "";
+    return [
+      `## ${p.title} (ID: ${p.page_id})`,
+      `- **URL**: ${p.url}`,
+      `- **Publicada**: ${p.published ? "Sim" : "Não"}`,
+      `- **Atualizada em**: ${formatDate(p.updated_at)}`,
+    ].join("\n") + bodyMd;
+  }
+
+  formatList(items: CanvasPage[], total?: number): string {
+    if (!items.length) return "Nenhuma página encontrada.";
+    const header = `# Páginas (${total ?? items.length})\n\n`;
+    return header + items.map((p) => this.format(p)).join("\n\n---\n\n");
+  }
+}
+
+export class PageJsonFormatter implements Formatter<CanvasPage> {
+  format(p: CanvasPage): string {
+    return JSON.stringify(p, null, 2);
+  }
+
+  formatList(items: CanvasPage[], total?: number): string {
+    return JSON.stringify({ total: total ?? items.length, items }, null, 2);
+  }
+}
+
+// ─── Discussion formatters ───────────────────────────────────────────────────
+
+export class DiscussionTopicMarkdownFormatter
+  implements Formatter<CanvasDiscussionTopic>
+{
+  format(t: CanvasDiscussionTopic): string {
+    const bodyMd = t.message ? "\n\n" + htmlToMarkdown(t.message) : "";
+    return [
+      `## ${t.title} (ID: ${t.id})`,
+      `- **Tipo**: ${t.discussion_type}`,
+      t.author ? `- **Autor**: ${t.author.display_name}` : "",
+      `- **Publicada**: ${t.published ? "Sim" : "Não"}`,
+      `- **Bloqueada**: ${t.locked ? "Sim" : "Não"}`,
+      t.posted_at ? `- **Postado em**: ${formatDate(t.posted_at)}` : "",
+      t.last_reply_at ? `- **Última resposta**: ${formatDate(t.last_reply_at)}` : "",
+      `- **Link**: ${t.html_url}`,
+    ]
+      .filter(Boolean)
+      .join("\n") + bodyMd;
+  }
+
+  formatList(items: CanvasDiscussionTopic[], total?: number): string {
+    if (!items.length) return "Nenhuma discussão encontrada.";
+    const header = `# Discussões (${total ?? items.length})\n\n`;
+    return header + items.map((t) => this.format(t)).join("\n\n---\n\n");
+  }
+}
+
+export class DiscussionTopicJsonFormatter
+  implements Formatter<CanvasDiscussionTopic>
+{
+  format(t: CanvasDiscussionTopic): string {
+    return JSON.stringify(t, null, 2);
+  }
+
+  formatList(items: CanvasDiscussionTopic[], total?: number): string {
+    return JSON.stringify({ total: total ?? items.length, items }, null, 2);
+  }
+}
+
+export class DiscussionEntryMarkdownFormatter
+  implements Formatter<CanvasDiscussionEntry>
+{
+  format(e: CanvasDiscussionEntry): string {
+    const bodyMd = htmlToMarkdown(e.message);
+    return [
+      `## Entrada ID ${e.id} — ${e.user_name ?? `Usuário ${e.user_id}`}`,
+      `- **Postada em**: ${formatDate(e.created_at)}`,
+      `- **Lida**: ${e.read_state === "read" ? "Sim" : "Não"}`,
+      "",
+      bodyMd,
+    ]
+      .filter((l) => l !== undefined)
+      .join("\n");
+  }
+
+  formatList(items: CanvasDiscussionEntry[], total?: number): string {
+    if (!items.length) return "Nenhuma entrada de discussão encontrada.";
+    const header = `# Entradas (${total ?? items.length})\n\n`;
+    return header + items.map((e) => this.format(e)).join("\n\n---\n\n");
+  }
+}
+
+export class DiscussionEntryJsonFormatter
+  implements Formatter<CanvasDiscussionEntry>
+{
+  format(e: CanvasDiscussionEntry): string {
+    return JSON.stringify(e, null, 2);
+  }
+
+  formatList(items: CanvasDiscussionEntry[], total?: number): string {
+    return JSON.stringify({ total: total ?? items.length, items }, null, 2);
+  }
+}
+
+// ─── Conversation formatters ─────────────────────────────────────────────────
+
+export class ConversationMarkdownFormatter
+  implements Formatter<CanvasConversation>
+{
+  format(c: CanvasConversation): string {
+    const participants =
+      c.participants?.map((p) => p.name).join(", ") ?? "N/A";
+    const lines = [
+      `## ${c.subject || "(sem assunto)"} (ID: ${c.id})`,
+      `- **Estado**: ${c.workflow_state}`,
+      `- **Mensagens**: ${c.message_count}`,
+      `- **Participantes**: ${participants}`,
+      c.last_message_at ? `- **Última mensagem**: ${formatDate(c.last_message_at)}` : "",
+      c.last_message ? `- **Prévia**: ${c.last_message.slice(0, 100)}${c.last_message.length > 100 ? "…" : ""}` : "",
+    ].filter(Boolean);
+    if (c.messages?.length) {
+      lines.push("", "**Mensagens:**");
+      for (const msg of c.messages) {
+        lines.push(`  - [${formatDate(msg.created_at)}] ${msg.body.slice(0, 80)}${msg.body.length > 80 ? "…" : ""}`);
+      }
+    }
+    return lines.join("\n");
+  }
+
+  formatList(items: CanvasConversation[], total?: number): string {
+    if (!items.length) return "Nenhuma conversa encontrada.";
+    const header = `# Conversas (${total ?? items.length})\n\n`;
+    return header + items.map((c) => this.format(c)).join("\n\n---\n\n");
+  }
+}
+
+export class ConversationJsonFormatter implements Formatter<CanvasConversation> {
+  format(c: CanvasConversation): string {
+    return JSON.stringify(c, null, 2);
+  }
+
+  formatList(items: CanvasConversation[], total?: number): string {
+    return JSON.stringify({ total: total ?? items.length, items }, null, 2);
+  }
+}
+
+// ─── File formatters ─────────────────────────────────────────────────────────
+
+export class FileMarkdownFormatter implements Formatter<CanvasFile> {
+  format(f: CanvasFile): string {
+    return [
+      `## ${f.display_name} (ID: ${f.id})`,
+      `- **Arquivo**: ${f.filename}`,
+      `- **Tipo**: ${f["content-type"]}`,
+      `- **Tamanho**: ${(f.size / 1024).toFixed(1)} KB`,
+      `- **URL**: ${f.url}`,
+      `- **Criado em**: ${formatDate(f.created_at)}`,
+    ].join("\n");
+  }
+
+  formatList(items: CanvasFile[], total?: number): string {
+    if (!items.length) return "Nenhum arquivo encontrado.";
+    const header = `# Arquivos (${total ?? items.length})\n\n`;
+    return header + items.map((f) => this.format(f)).join("\n\n---\n\n");
+  }
+}
+
+export class FileJsonFormatter implements Formatter<CanvasFile> {
+  format(f: CanvasFile): string {
+    return JSON.stringify(f, null, 2);
+  }
+
+  formatList(items: CanvasFile[], total?: number): string {
+    return JSON.stringify({ total: total ?? items.length, items }, null, 2);
+  }
+}
+
+// ─── Planner Note formatters ─────────────────────────────────────────────────
+
+export class PlannerNoteMarkdownFormatter implements Formatter<CanvasPlannerNote> {
+  format(n: CanvasPlannerNote): string {
+    return [
+      `## ${n.title} (ID: ${n.id})`,
+      `- **Data**: ${formatDateOnly(n.todo_date)}`,
+      n.course_id ? `- **Curso ID**: ${n.course_id}` : "",
+      n.description ? `- **Detalhes**: ${n.description}` : "",
+      n.linked_object_type
+        ? `- **Vinculado a**: ${n.linked_object_type} ID ${n.linked_object_id}`
+        : "",
+      `- **Estado**: ${n.workflow_state}`,
+    ]
+      .filter(Boolean)
+      .join("\n");
+  }
+
+  formatList(items: CanvasPlannerNote[], total?: number): string {
+    if (!items.length) return "Nenhuma nota do planejador encontrada.";
+    const header = `# Notas do Planejador (${total ?? items.length})\n\n`;
+    return header + items.map((n) => this.format(n)).join("\n\n---\n\n");
+  }
+}
+
+export class PlannerNoteJsonFormatter implements Formatter<CanvasPlannerNote> {
+  format(n: CanvasPlannerNote): string {
+    return JSON.stringify(n, null, 2);
+  }
+
+  formatList(items: CanvasPlannerNote[], total?: number): string {
+    return JSON.stringify({ total: total ?? items.length, items }, null, 2);
+  }
+}
+
+// ─── Grades formatters ───────────────────────────────────────────────────────
+
+export class GradesMarkdownFormatter implements Formatter<CanvasEnrollment> {
+  format(e: CanvasEnrollment): string {
+    const g = e.grades;
+    return [
+      `## Notas do Curso (ID: ${e.course_id ?? "N/A"})`,
+      `- **Nota atual**: ${g?.current_grade ?? "N/A"}${g?.current_score != null ? ` (${g.current_score}%)` : ""}`,
+      `- **Nota final**: ${g?.final_grade ?? "N/A"}${g?.final_score != null ? ` (${g.final_score}%)` : ""}`,
+      `- **Tipo de matrícula**: ${e.type}`,
+    ].join("\n");
+  }
+
+  formatList(items: CanvasEnrollment[], total?: number): string {
+    return items.map((e) => this.format(e)).join("\n\n---\n\n");
+  }
+}
+
+export class GradesJsonFormatter implements Formatter<CanvasEnrollment> {
+  format(e: CanvasEnrollment): string {
+    return JSON.stringify(e, null, 2);
+  }
+
+  formatList(items: CanvasEnrollment[], total?: number): string {
+    return JSON.stringify({ total: total ?? items.length, items }, null, 2);
+  }
+}
+
+// ─── Quiz formatters ─────────────────────────────────────────────────────────
+
+export class QuizMarkdownFormatter implements Formatter<CanvasQuiz> {
+  format(q: CanvasQuiz): string {
+    return [
+      `## ${q.title} (ID: ${q.id})`,
+      `- **Tipo**: ${q.quiz_type}`,
+      `- **Questões**: ${q.question_count}`,
+      q.points_possible != null ? `- **Pontos**: ${q.points_possible}` : "",
+      q.time_limit != null ? `- **Tempo**: ${q.time_limit} minutos` : "",
+      `- **Tentativas permitidas**: ${q.allowed_attempts === -1 ? "ilimitadas" : q.allowed_attempts}`,
+      q.due_at ? `- **Prazo**: ${formatDate(q.due_at)}` : "",
+      q.unlock_at ? `- **Disponível a partir de**: ${formatDate(q.unlock_at)}` : "",
+      `- **Publicado**: ${q.published ? "Sim" : "Não"}`,
+      `- **Link**: ${q.html_url}`,
+    ]
+      .filter(Boolean)
+      .join("\n");
+  }
+
+  formatList(items: CanvasQuiz[], total?: number): string {
+    if (!items.length) return "Nenhum quiz encontrado.";
+    const header = `# Quizzes (${total ?? items.length})\n\n`;
+    return header + items.map((q) => this.format(q)).join("\n\n---\n\n");
+  }
+}
+
+export class QuizJsonFormatter implements Formatter<CanvasQuiz> {
+  format(q: CanvasQuiz): string {
+    return JSON.stringify(q, null, 2);
+  }
+
+  formatList(items: CanvasQuiz[], total?: number): string {
     return JSON.stringify({ total: total ?? items.length, items }, null, 2);
   }
 }

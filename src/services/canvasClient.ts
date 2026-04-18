@@ -13,6 +13,8 @@ export interface ICanvasClient {
     params?: Record<string, unknown>
   ): Promise<Result<PaginatedResponse<T>>>;
   post<T>(path: string, body: unknown): Promise<Result<T>>;
+  put<T>(path: string, body: unknown): Promise<Result<T>>;
+  delete<T>(path: string): Promise<Result<T>>;
 }
 
 function parseLinkHeader(header: string | undefined): string | undefined {
@@ -94,7 +96,25 @@ export function createCanvasClient(
     }
   }
 
-  return { get, getPaginated, post };
+  async function put<T>(path: string, body: unknown): Promise<Result<T>> {
+    try {
+      const response = await http.put<T>(path, body);
+      return ok(response.data);
+    } catch (error) {
+      return err(mapApiError(error));
+    }
+  }
+
+  async function deleteReq<T>(path: string): Promise<Result<T>> {
+    try {
+      const response = await http.delete<T>(path);
+      return ok(response.data);
+    } catch (error) {
+      return err(mapApiError(error));
+    }
+  }
+
+  return { get, getPaginated, post, put, delete: deleteReq };
 }
 
 /**

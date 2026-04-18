@@ -1,0 +1,14 @@
+[
+  {
+    "id": 1101,
+    "type": "StudentEnrollment",
+    "enrollment_state": "active",
+    "course_id": 101,
+    "grades": {
+      "current_grade": "A",
+      "current_score": 87.5,
+      "final_grade": "B+",
+      "final_score": 82.0
+    }
+  }
+]

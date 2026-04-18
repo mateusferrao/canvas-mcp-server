@@ -1,0 +1,13 @@
+{
+  "id": 601,
+  "title": "Dúvidas sobre o Trabalho 1",
+  "message": "<p>Poste suas dúvidas sobre o <strong>Trabalho 1</strong> aqui.</p>",
+  "html_url": "https://pucminas.instructure.com/courses/101/discussion_topics/601",
+  "posted_at": "2024-05-01T09:00:00Z",
+  "last_reply_at": "2024-05-10T14:30:00Z",
+  "published": true,
+  "locked": false,
+  "discussion_type": "side_comment",
+  "author": { "id": 1, "display_name": "Prof. Carlos" },
+  "permissions": { "reply": true, "attach": false }
+}

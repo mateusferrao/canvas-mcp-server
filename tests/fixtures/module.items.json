@@ -1,0 +1,23 @@
+[
+  {
+    "id": 1001,
+    "module_id": 301,
+    "position": 1,
+    "title": "Apresentação do Curso",
+    "type": "Page",
+    "html_url": "https://pucminas.instructure.com/courses/101/modules/items/1001",
+    "page_url": "apresentacao-do-curso",
+    "completion_requirement": { "type": "must_view", "completed": true }
+  },
+  {
+    "id": 1002,
+    "module_id": 301,
+    "position": 2,
+    "title": "Atividade 1",
+    "type": "Assignment",
+    "content_id": 201,
+    "html_url": "https://pucminas.instructure.com/courses/101/assignments/201",
+    "completion_requirement": { "type": "must_submit", "completed": false },
+    "content_details": { "points_possible": 10, "due_at": "2024-06-30T23:59:00Z" }
+  }
+]

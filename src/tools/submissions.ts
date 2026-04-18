@@ -38,8 +38,8 @@ const SubmitAssignmentSchema = z
     course_id: CourseIdSchema,
     assignment_id: AssignmentIdSchema,
     submission_type: z
-      .enum(["online_text_entry", "online_url"])
-      .describe("Tipo de entrega: texto ou URL"),
+      .enum(["online_text_entry", "online_url", "online_upload"])
+      .describe("Tipo de entrega: texto (online_text_entry), URL (online_url) ou arquivo (online_upload)"),
     body: z
       .string()
       .optional()
@@ -49,6 +49,10 @@ const SubmitAssignmentSchema = z
       .url()
       .optional()
       .describe("URL para online_url (deve ser http/https)"),
+    file_ids: z
+      .array(z.number().int().positive())
+      .optional()
+      .describe("IDs dos arquivos para online_upload. Use canvas_upload_file primeiro para obter os IDs."),
   })
   .strict();
 
@@ -129,9 +133,10 @@ Retorna: detalhes da entrega incluindo nota, estado e conteúdo.`,
       title: "Entregar Tarefa Canvas",
       description: `Entrega uma tarefa no Canvas LMS.
 
-Tipos suportados no MVP:
+Tipos suportados:
   - online_text_entry: enviar texto HTML (use campo "body")
   - online_url: enviar link (use campo "url" com http/https)
+  - online_upload: enviar arquivo(s) (use campo "file_ids" com IDs de canvas_upload_file)
 
 Args:
   - course_id: ID do curso
@@ -158,6 +163,7 @@ ATENÇÃO: Esta operação envia uma entrega real no Canvas. Verifique os dados 
         submissionType: params.submission_type,
         body: params.body,
         url: params.url,
+        fileIds: params.file_ids,
       });
 
       if (!result.ok) {

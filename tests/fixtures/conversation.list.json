@@ -1,0 +1,17 @@
+[
+  {
+    "id": 801,
+    "subject": "Dúvida sobre nota",
+    "workflow_state": "unread",
+    "last_message": "Olá professor, gostaria de entender minha nota.",
+    "last_message_at": "2024-05-20T14:00:00Z",
+    "message_count": 2,
+    "subscribed": true,
+    "private": true,
+    "starred": false,
+    "participants": [
+      { "id": 999, "name": "João da Silva" },
+      { "id": 1, "name": "Prof. Carlos" }
+    ]
+  }
+]

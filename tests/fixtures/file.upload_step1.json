@@ -1,0 +1,14 @@
+{
+  "upload_url": "https://instructure-uploads.s3.amazonaws.com/",
+  "upload_params": {
+    "x-amz-credential": "FAKEKEY/20240601/us-east-1/s3/aws4_request",
+    "x-amz-date": "20240601T000000Z",
+    "x-amz-signature": "fakesignature",
+    "key": "uploads/test-file.pdf",
+    "Content-Type": "application/pdf",
+    "Policy": "fakepolicy",
+    "success_action_redirect": "https://pucminas.instructure.com/api/v1/files/5001/confirm"
+  },
+  "file_param": "file",
+  "progress": null
+}

@@ -4,6 +4,22 @@ import assignmentList from "../fixtures/assignment.list.json" assert { type: "js
 import submissionGet from "../fixtures/submission.get.json" assert { type: "json" };
 import profileGet from "../fixtures/profile.get.json" assert { type: "json" };
 import todoList from "../fixtures/todo.list.json" assert { type: "json" };
+import moduleList from "../fixtures/module.list.json" assert { type: "json" };
+import moduleItems from "../fixtures/module.items.json" assert { type: "json" };
+import pageList from "../fixtures/page.list.json" assert { type: "json" };
+import pageGet from "../fixtures/page.get.json" assert { type: "json" };
+import discussionList from "../fixtures/discussion.list.json" assert { type: "json" };
+import discussionGet from "../fixtures/discussion.get.json" assert { type: "json" };
+import discussionEntries from "../fixtures/discussion.entries.json" assert { type: "json" };
+import conversationList from "../fixtures/conversation.list.json" assert { type: "json" };
+import conversationGet from "../fixtures/conversation.get.json" assert { type: "json" };
+import plannerNoteList from "../fixtures/planner.list.json" assert { type: "json" };
+import plannerNoteGet from "../fixtures/planner.get.json" assert { type: "json" };
+import enrollmentGrades from "../fixtures/grades.get.json" assert { type: "json" };
+import quizList from "../fixtures/quiz.list.json" assert { type: "json" };
+import quizGet from "../fixtures/quiz.get.json" assert { type: "json" };
+import fileUploadStep1 from "../fixtures/file.upload_step1.json" assert { type: "json" };
+import fileConfirm from "../fixtures/file.confirm.json" assert { type: "json" };
 
 const BASE = "https://pucminas.instructure.com/api/v1";
 
@@ -97,5 +113,132 @@ export const handlers = [
   // 429 handler
   http.get(`${BASE}/courses/429`, () =>
     HttpResponse.json({ errors: [{ message: "Rate limit exceeded" }] }, { status: 429 })
+  ),
+
+  // ── Modules ────────────────────────────────────────────────────────────────
+
+  http.get(`${BASE}/courses/101/modules`, () => HttpResponse.json(moduleList)),
+  http.get(`${BASE}/courses/401/modules`, () =>
+    HttpResponse.json({ errors: [{ message: "Invalid access token." }] }, { status: 401 })
+  ),
+  http.get(`${BASE}/courses/9999/modules`, () =>
+    HttpResponse.json({ errors: [{ message: "não encontrado" }] }, { status: 404 })
+  ),
+  http.get(`${BASE}/courses/101/modules/301/items`, () =>
+    HttpResponse.json(moduleItems)
+  ),
+  http.put(`${BASE}/courses/101/modules/301/items/1001/done`, () =>
+    new HttpResponse(null, { status: 204 })
+  ),
+  http.put(`${BASE}/courses/101/modules/301/items/9999/done`, () =>
+    HttpResponse.json({ errors: [{ message: "não encontrado" }] }, { status: 404 })
+  ),
+
+  // ── Pages ──────────────────────────────────────────────────────────────────
+
+  http.get(`${BASE}/courses/101/pages`, () => HttpResponse.json(pageList)),
+  http.get(`${BASE}/courses/101/pages/introducao-ao-curso`, () =>
+    HttpResponse.json(pageGet)
+  ),
+  http.get(`${BASE}/courses/101/pages/9999`, () =>
+    HttpResponse.json({ errors: [{ message: "não encontrado" }] }, { status: 404 })
+  ),
+  http.get(`${BASE}/courses/9999/pages`, () =>
+    HttpResponse.json({ errors: [{ message: "não encontrado" }] }, { status: 404 })
+  ),
+
+  // ── Discussions ────────────────────────────────────────────────────────────
+
+  http.get(`${BASE}/courses/101/discussion_topics`, () =>
+    HttpResponse.json(discussionList)
+  ),
+  http.get(`${BASE}/courses/101/discussion_topics/601`, () =>
+    HttpResponse.json(discussionGet)
+  ),
+  http.get(`${BASE}/courses/101/discussion_topics/601/entries`, () =>
+    HttpResponse.json(discussionEntries)
+  ),
+  http.post(`${BASE}/courses/101/discussion_topics/601/entries`, () =>
+    HttpResponse.json(
+      { id: 9001, user_id: 999, message: "<p>Meu comentário</p>", read_state: "read", created_at: "2024-06-01T10:00:00Z", updated_at: "2024-06-01T10:00:00Z" },
+      { status: 201 }
+    )
+  ),
+  http.post(`${BASE}/courses/101/discussion_topics/601/entries/701/replies`, () =>
+    HttpResponse.json(
+      { id: 9002, user_id: 999, message: "<p>Minha resposta</p>", read_state: "read", created_at: "2024-06-01T11:00:00Z", updated_at: "2024-06-01T11:00:00Z" },
+      { status: 201 }
+    )
+  ),
+  http.get(`${BASE}/courses/9999/discussion_topics`, () =>
+    HttpResponse.json({ errors: [{ message: "não encontrado" }] }, { status: 404 })
+  ),
+
+  // ── Conversations ──────────────────────────────────────────────────────────
+
+  http.get(`${BASE}/conversations`, () =>
+    HttpResponse.json(conversationList)
+  ),
+  http.get(`${BASE}/conversations/801`, () =>
+    HttpResponse.json(conversationGet)
+  ),
+  http.get(`${BASE}/conversations/9999`, () =>
+    HttpResponse.json({ errors: [{ message: "não encontrado" }] }, { status: 404 })
+  ),
+  http.post(`${BASE}/conversations`, () =>
+    HttpResponse.json([conversationGet], { status: 201 })
+  ),
+  http.post(`${BASE}/conversations/801/add_message`, () =>
+    HttpResponse.json(conversationGet, { status: 200 })
+  ),
+
+  // ── Planner Notes ──────────────────────────────────────────────────────────
+
+  http.get(`${BASE}/planner_notes`, () =>
+    HttpResponse.json(plannerNoteList)
+  ),
+  http.get(`${BASE}/planner_notes/901`, () =>
+    HttpResponse.json(plannerNoteGet)
+  ),
+  http.get(`${BASE}/planner_notes/9999`, () =>
+    HttpResponse.json({ errors: [{ message: "não encontrado" }] }, { status: 404 })
+  ),
+  http.post(`${BASE}/planner_notes`, () =>
+    HttpResponse.json({ ...plannerNoteGet, id: 902 }, { status: 201 })
+  ),
+  http.put(`${BASE}/planner_notes/901`, () =>
+    HttpResponse.json({ ...plannerNoteGet, title: "Nota atualizada" })
+  ),
+  http.delete(`${BASE}/planner_notes/901`, () =>
+    new HttpResponse(null, { status: 204 })
+  ),
+
+  // ── Grades ─────────────────────────────────────────────────────────────────
+
+  http.get(`${BASE}/courses/101/enrollments`, () =>
+    HttpResponse.json(enrollmentGrades)
+  ),
+  http.get(`${BASE}/courses/9999/enrollments`, () =>
+    HttpResponse.json({ errors: [{ message: "não encontrado" }] }, { status: 404 })
+  ),
+
+  // ── Quizzes ────────────────────────────────────────────────────────────────
+
+  http.get(`${BASE}/courses/101/quizzes`, () => HttpResponse.json(quizList)),
+  http.get(`${BASE}/courses/101/quizzes/1001`, () => HttpResponse.json(quizGet)),
+  http.get(`${BASE}/courses/101/quizzes/9999`, () =>
+    HttpResponse.json({ errors: [{ message: "não encontrado" }] }, { status: 404 })
+  ),
+  http.get(`${BASE}/courses/9999/quizzes`, () =>
+    HttpResponse.json({ errors: [{ message: "não encontrado" }] }, { status: 404 })
+  ),
+
+  // ── Files ──────────────────────────────────────────────────────────────────
+
+  http.post(`${BASE}/users/self/files`, () =>
+    HttpResponse.json(fileUploadStep1, { status: 200 })
+  ),
+  http.get(`${BASE}/files/5001`, () =>
+    HttpResponse.json(fileConfirm)
   ),
 ];

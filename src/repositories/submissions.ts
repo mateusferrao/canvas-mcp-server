@@ -9,7 +9,7 @@ export interface ListSubmissionsParams {
   include_assignment?: boolean;
 }
 
-export type SubmissionType = "online_text_entry" | "online_url";
+export type SubmissionType = "online_text_entry" | "online_url" | "online_upload";
 
 export interface SubmitAssignmentParams {
   courseId: number;
@@ -17,6 +17,8 @@ export interface SubmitAssignmentParams {
   submissionType: SubmissionType;
   body?: string;
   url?: string;
+  /** Pre-uploaded file IDs (online_upload). Use canvas_upload_file first. */
+  fileIds?: number[];
 }
 
 export class SubmissionsRepository {
@@ -87,6 +89,20 @@ export class SubmissionsRepository {
         };
       }
       body["submission[url]"] = params.url;
+    }
+
+    if (params.submissionType === "online_upload") {
+      if (!params.fileIds?.length) {
+        return {
+          ok: false,
+          error: {
+            code: "INVALID_PARAMS",
+            message:
+              "fileIds é obrigatório para online_upload. Use canvas_upload_file para obter os IDs.",
+          },
+        };
+      }
+      body["submission[file_ids][]"] = params.fileIds;
     }
 
     return this.client.post<CanvasSubmission>(

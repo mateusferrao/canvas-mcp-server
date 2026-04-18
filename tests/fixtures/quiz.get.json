@@ -1,0 +1,15 @@
+{
+  "id": 1001,
+  "title": "Quiz 1: Conceitos Básicos",
+  "html_url": "https://pucminas.instructure.com/courses/101/quizzes/1001",
+  "description": "<p>Teste seus conhecimentos sobre os conceitos básicos da disciplina.</p>",
+  "quiz_type": "assignment",
+  "time_limit": 30,
+  "allowed_attempts": 2,
+  "points_possible": 10,
+  "due_at": "2024-06-05T23:59:00Z",
+  "lock_at": null,
+  "unlock_at": "2024-05-20T00:00:00Z",
+  "published": true,
+  "question_count": 10
+}

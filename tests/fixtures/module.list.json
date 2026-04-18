@@ -1,0 +1,21 @@
+[
+  {
+    "id": 301,
+    "name": "Módulo 1: Introdução",
+    "position": 1,
+    "workflow_state": "active",
+    "items_count": 3,
+    "items_url": "https://pucminas.instructure.com/api/v1/courses/101/modules/301/items",
+    "state": "completed",
+    "completed_at": "2024-03-10T12:00:00Z"
+  },
+  {
+    "id": 302,
+    "name": "Módulo 2: Fundamentos",
+    "position": 2,
+    "workflow_state": "active",
+    "items_count": 5,
+    "items_url": "https://pucminas.instructure.com/api/v1/courses/101/modules/302/items",
+    "state": "unlocked"
+  }
+]
