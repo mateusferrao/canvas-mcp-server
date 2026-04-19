@@ -20,6 +20,15 @@ import quizList from "../fixtures/quiz.list.json" assert { type: "json" };
 import quizGet from "../fixtures/quiz.get.json" assert { type: "json" };
 import fileUploadStep1 from "../fixtures/file.upload_step1.json" assert { type: "json" };
 import fileConfirm from "../fixtures/file.confirm.json" assert { type: "json" };
+import quizQuestions from "../fixtures/quiz.questions.json" assert { type: "json" };
+import quizAttemptStart from "../fixtures/quiz.attempt.start.json" assert { type: "json" };
+import quizAttemptExisting from "../fixtures/quiz.attempt.existing.json" assert { type: "json" };
+import quizSubmissionQuestions from "../fixtures/quiz.submission.questions.json" assert { type: "json" };
+import quizSubmissionAnswer from "../fixtures/quiz.submission.answer.json" assert { type: "json" };
+import quizSubmissionComplete from "../fixtures/quiz.submission.complete.json" assert { type: "json" };
+import quizSubmissionsList from "../fixtures/quiz.submissions.list.json" assert { type: "json" };
+import quizSubmissionGet from "../fixtures/quiz.submission.get.json" assert { type: "json" };
+import quizTimeLeft from "../fixtures/quiz.time_left.json" assert { type: "json" };
 
 const BASE = "https://pucminas.instructure.com/api/v1";
 
@@ -240,5 +249,67 @@ export const handlers = [
   ),
   http.get(`${BASE}/files/5001`, () =>
     HttpResponse.json(fileConfirm)
+  ),
+
+  // ── Quiz-taking flow (Phase 3) ─────────────────────────────────────────────
+
+  // List questions (flat array)
+  http.get(`${BASE}/courses/101/quizzes/1001/questions`, () =>
+    HttpResponse.json(quizQuestions)
+  ),
+  http.get(`${BASE}/courses/101/quizzes/9999/questions`, () =>
+    HttpResponse.json({ errors: [{ message: "não encontrado" }] }, { status: 404 })
+  ),
+
+  // Start attempt — quiz 1001: success
+  http.post(`${BASE}/courses/101/quizzes/1001/submissions`, () =>
+    HttpResponse.json(quizAttemptStart, { status: 201 })
+  ),
+
+  // Start attempt — quiz 1002: 409 conflict, then recovery via GET singular
+  http.post(`${BASE}/courses/101/quizzes/1002/submissions`, () =>
+    HttpResponse.json(
+      { errors: [{ message: "já existe uma tentativa em andamento" }] },
+      { status: 409 }
+    )
+  ),
+  http.get(`${BASE}/courses/101/quizzes/1002/submission`, () =>
+    HttpResponse.json(quizAttemptExisting)
+  ),
+
+  // Submission questions (submission-scoped, NOT course-scoped)
+  http.get(`${BASE}/quiz_submissions/2001/questions`, () =>
+    HttpResponse.json(quizSubmissionQuestions)
+  ),
+  http.get(`${BASE}/quiz_submissions/9999/questions`, () =>
+    HttpResponse.json({ errors: [{ message: "não encontrado" }] }, { status: 404 })
+  ),
+
+  // Answer question
+  http.post(`${BASE}/quiz_submissions/2001/questions`, () =>
+    HttpResponse.json(quizSubmissionAnswer)
+  ),
+
+  // Complete attempt
+  http.post(`${BASE}/courses/101/quizzes/1001/submissions/2001/complete`, () =>
+    HttpResponse.json(quizSubmissionComplete)
+  ),
+
+  // List submissions
+  http.get(`${BASE}/courses/101/quizzes/1001/submissions`, () =>
+    HttpResponse.json(quizSubmissionsList)
+  ),
+
+  // Get single submission
+  http.get(`${BASE}/courses/101/quizzes/1001/submissions/2001`, () =>
+    HttpResponse.json(quizSubmissionGet)
+  ),
+  http.get(`${BASE}/courses/101/quizzes/1001/submissions/9999`, () =>
+    HttpResponse.json({ errors: [{ message: "não encontrado" }] }, { status: 404 })
+  ),
+
+  // Time left
+  http.get(`${BASE}/courses/101/quizzes/1001/submissions/2001/time`, () =>
+    HttpResponse.json(quizTimeLeft)
   ),
 ];

@@ -44,6 +44,12 @@ export function mapApiError(error: unknown): CanvasError {
             "Recurso não encontrado — verifique o ID informado.",
           status,
         };
+      case 409:
+        return {
+          code: "CONFLICT",
+          message: "Conflito — recurso já existe ou operação não permitida no estado atual.",
+          status,
+        };
       case 422:
         return {
           code: "UNPROCESSABLE",

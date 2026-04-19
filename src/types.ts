@@ -246,6 +246,62 @@ export interface CanvasQuiz {
   question_count: number;
 }
 
+export interface CanvasQuizAnswer {
+  id: number;
+  text: string;
+  weight: number;
+  match_id?: number;
+  blank_id?: string;
+}
+
+export interface CanvasQuizQuestion {
+  id: number;
+  quiz_id: number;
+  position: number;
+  question_name: string;
+  question_type: string;
+  question_text: string;
+  points_possible: number;
+  answers?: CanvasQuizAnswer[];
+}
+
+export interface CanvasQuizSubmission {
+  id: number;
+  quiz_id: number;
+  user_id: number;
+  submission_id?: number;
+  attempt: number;
+  started_at?: string;
+  finished_at?: string;
+  end_at?: string;
+  time_spent?: number;
+  score?: number;
+  kept_score?: number;
+  workflow_state: string;
+  overdue_and_needs_submission?: boolean;
+  validation_token?: string | null;
+}
+
+export interface CanvasQuizSubmissionQuestion {
+  id: number;
+  flagged: boolean;
+  answer?: unknown;
+  answers?: unknown;
+}
+
+export interface CanvasQuizSubmissionEnvelope {
+  quiz_submissions: CanvasQuizSubmission[];
+}
+
+export interface CanvasQuizSubmissionQuestionsEnvelope {
+  quiz_submission_questions: CanvasQuizSubmissionQuestion[];
+}
+
+export interface CanvasQuizTimeLeft {
+  end_at: string;
+  time_left: number;
+}
+
 export interface PaginatedResponse<T> {
   items: T[];
   hasMore: boolean;

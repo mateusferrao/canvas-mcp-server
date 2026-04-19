@@ -12,6 +12,10 @@ import type {
   CanvasPage,
   CanvasPlannerNote,
   CanvasQuiz,
+  CanvasQuizQuestion,
+  CanvasQuizSubmission,
+  CanvasQuizSubmissionQuestion,
+  CanvasQuizTimeLeft,
   CanvasEnrollment,
   CanvasSubmission,
   CanvasTodoItem,
@@ -636,6 +640,143 @@ export class QuizJsonFormatter implements Formatter<CanvasQuiz> {
 
   formatList(items: CanvasQuiz[], total?: number): string {
     return JSON.stringify({ total: total ?? items.length, items }, null, 2);
+  }
+}
+
+// ─── Quiz Question formatters ────────────────────────────────────────────────
+
+export class QuizQuestionMarkdownFormatter implements Formatter<CanvasQuizQuestion> {
+  format(q: CanvasQuizQuestion): string {
+    const lines = [
+      `## Questão ${q.position}: ${q.question_name} (ID: ${q.id})`,
+      `- **Tipo**: ${q.question_type}`,
+      `- **Pontos**: ${q.points_possible}`,
+      `- **Enunciado**: ${q.question_text.replace(/<[^>]*>/g, " ").trim()}`,
+    ];
+    if (q.answers && q.answers.length > 0) {
+      lines.push("- **Opções**:");
+      for (const a of q.answers) {
+        lines.push(`  - [${a.id}] ${a.text}`);
+      }
+    }
+    return lines.filter(Boolean).join("\n");
+  }
+
+  formatList(items: CanvasQuizQuestion[], total?: number): string {
+    if (!items.length) return "Nenhuma questão encontrada.";
+    const header = `# Questões (${total ?? items.length})\n\n`;
+    return header + items.map((q) => this.format(q)).join("\n\n---\n\n");
+  }
+}
+
+export class QuizQuestionJsonFormatter implements Formatter<CanvasQuizQuestion> {
+  format(q: CanvasQuizQuestion): string {
+    return JSON.stringify(q, null, 2);
+  }
+
+  formatList(items: CanvasQuizQuestion[], total?: number): string {
+    return JSON.stringify({ total: total ?? items.length, items }, null, 2);
+  }
+}
+
+// ─── Quiz Submission formatters ──────────────────────────────────────────────
+
+export class QuizSubmissionMarkdownFormatter implements Formatter<CanvasQuizSubmission> {
+  format(s: CanvasQuizSubmission): string {
+    return [
+      `## Tentativa #${s.attempt} (ID: ${s.id})`,
+      `- **Estado**: ${s.workflow_state}`,
+      s.score != null ? `- **Nota**: ${s.score}` : "",
+      s.kept_score != null ? `- **Nota mantida**: ${s.kept_score}` : "",
+      s.started_at ? `- **Iniciada em**: ${formatDate(s.started_at)}` : "",
+      s.finished_at ? `- **Concluída em**: ${formatDate(s.finished_at)}` : "",
+      s.end_at ? `- **Expira em**: ${formatDate(s.end_at)}` : "",
+      s.time_spent != null ? `- **Tempo gasto**: ${s.time_spent}s` : "",
+      s.validation_token
+        ? `- **validation_token**: ${s.validation_token}`
+        : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+  }
+
+  formatList(items: CanvasQuizSubmission[], total?: number): string {
+    if (!items.length) return "Nenhuma tentativa encontrada.";
+    const header = `# Tentativas (${total ?? items.length})\n\n`;
+    return header + items.map((s) => this.format(s)).join("\n\n---\n\n");
+  }
+}
+
+export class QuizSubmissionJsonFormatter implements Formatter<CanvasQuizSubmission> {
+  format(s: CanvasQuizSubmission): string {
+    return JSON.stringify(s, null, 2);
+  }
+
+  formatList(items: CanvasQuizSubmission[], total?: number): string {
+    return JSON.stringify({ total: total ?? items.length, items }, null, 2);
+  }
+}
+
+// ─── Quiz Submission Question formatters ─────────────────────────────────────
+
+export class QuizSubmissionQuestionMarkdownFormatter
+  implements Formatter<CanvasQuizSubmissionQuestion>
+{
+  format(q: CanvasQuizSubmissionQuestion): string {
+    return [
+      `## Questão ID: ${q.id}`,
+      `- **Marcada para revisão**: ${q.flagged ? "Sim" : "Não"}`,
+      q.answer != null ? `- **Resposta atual**: ${JSON.stringify(q.answer)}` : "- **Resposta atual**: (sem resposta)",
+    ]
+      .filter(Boolean)
+      .join("\n");
+  }
+
+  formatList(items: CanvasQuizSubmissionQuestion[], total?: number): string {
+    if (!items.length) return "Nenhuma questão encontrada.";
+    const header = `# Questões da Tentativa (${total ?? items.length})\n\n`;
+    return header + items.map((q) => this.format(q)).join("\n\n---\n\n");
+  }
+}
+
+export class QuizSubmissionQuestionJsonFormatter
+  implements Formatter<CanvasQuizSubmissionQuestion>
+{
+  format(q: CanvasQuizSubmissionQuestion): string {
+    return JSON.stringify(q, null, 2);
+  }
+
+  formatList(items: CanvasQuizSubmissionQuestion[], total?: number): string {
+    return JSON.stringify({ total: total ?? items.length, items }, null, 2);
+  }
+}
+
+// ─── Quiz Time Left formatter ─────────────────────────────────────────────────
+
+export class QuizTimeLeftMarkdownFormatter implements Formatter<CanvasQuizTimeLeft> {
+  format(t: CanvasQuizTimeLeft): string {
+    const minutes = Math.floor(t.time_left / 60);
+    const seconds = t.time_left % 60;
+    return [
+      `## Tempo Restante`,
+      `- **Segundos restantes**: ${t.time_left}`,
+      `- **Tempo restante**: ${minutes}min ${seconds}s`,
+      `- **Expira em**: ${formatDate(t.end_at)}`,
+    ].join("\n");
+  }
+
+  formatList(items: CanvasQuizTimeLeft[]): string {
+    return items.map((t) => this.format(t)).join("\n");
+  }
+}
+
+export class QuizTimeLeftJsonFormatter implements Formatter<CanvasQuizTimeLeft> {
+  format(t: CanvasQuizTimeLeft): string {
+    return JSON.stringify(t, null, 2);
+  }
+
+  formatList(items: CanvasQuizTimeLeft[]): string {
+    return JSON.stringify(items, null, 2);
   }
 }
 

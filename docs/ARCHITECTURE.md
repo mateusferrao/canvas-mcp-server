@@ -28,7 +28,7 @@ canvas-mcp-server/
 │   │   ├── files.ts              # Phase 2 — 3-step S3 upload, uses axios directly (not ICanvasClient)
 │   │   ├── planner.ts            # Phase 2
 │   │   ├── grades.ts             # Phase 2
-│   │   └── quizzes.ts            # Phase 2
+│   │   └── quizzes.ts            # Phase 2 (metadata) + Phase 3 (full taking flow)
 │   ├── schemas/
 │   │   └── common.ts             # Zod schemas: pagination, response format, domain IDs
 │   └── tools/
@@ -48,7 +48,7 @@ canvas-mcp-server/
 │       ├── files.ts              # Phase 2
 │       ├── planner.ts            # Phase 2
 │       ├── grades.ts             # Phase 2
-│       └── quizzes.ts            # Phase 2
+│       └── quizzes.ts            # Phase 2 (metadata) + Phase 3 (full taking flow)
 ├── tests/
 │   ├── unit/
 │   │   ├── services/             # canvasClient, errors, formatters tests
@@ -56,7 +56,8 @@ canvas-mcp-server/
 │   │   └── schemas/              # common schema validation tests
 │   ├── integration/
 │   │   ├── server.test.ts        # In-memory MCP client ↔ server, Phase 1 tools
-│   │   └── tools.phase2.test.ts  # In-memory MCP client ↔ server, Phase 2 tools
+│   │   ├── tools.phase2.test.ts  # In-memory MCP client ↔ server, Phase 2 tools
+│   │   └── tools.quiz-flow.test.ts # In-memory MCP client ↔ server, Phase 3 quiz flow
 │   ├── fixtures/                 # Canonical Canvas API JSON response shapes
 │   ├── mocks/                    # MSW server + request handlers (all domains)
 │   └── helpers/                  # buildTestClient(), buildInMemoryServer()
@@ -225,6 +226,14 @@ Canvas file upload is a 3-step process: (1) notify Canvas → get S3 pre-signed 
 ### Character limit (25,000)
 
 MCP tool responses become part of the AI's context window. The 25k character soft cap truncates with a message advising the user to paginate or filter. Adjust `CHARACTER_LIMIT` in `src/constants.ts` if needed.
+
+### Stateless `validation_token` flow (Phase 3)
+
+Canvas issues `validation_token` **once** when a quiz attempt is created (`POST .../submissions`). It is required by the answer endpoint and the complete endpoint — but not stored server-side.
+
+The MCP server follows its "no data persistence" principle: `validation_token` is returned in the `canvas_start_quiz_attempt` response (prominently displayed in Markdown output). The AI agent reads it from the response and passes it as a parameter to `canvas_answer_quiz_question` and `canvas_complete_quiz_attempt`. No caching, no session state.
+
+**409 Conflict recovery:** If a quiz already has an in-progress attempt, the start attempt endpoint returns 409. `QuizzesRepository.startAttempt()` detects `error.code === "CONFLICT"`, falls back to `GET .../quizzes/:id/submission` to retrieve the existing attempt (including its `validation_token`), and returns it as a normal `Result<CanvasQuizSubmission>`. The tool handler sees no difference.
 
 ### SSRF protection for `CANVAS_DOMAIN`
 

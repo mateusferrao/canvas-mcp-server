@@ -1,0 +1,40 @@
+[
+  {
+    "id": 3001,
+    "quiz_id": 1001,
+    "position": 1,
+    "question_name": "Questão 1",
+    "question_type": "multiple_choice_question",
+    "question_text": "<p>Qual é o principal objetivo da Engenharia de Software?</p>",
+    "points_possible": 1,
+    "answers": [
+      { "id": 1, "text": "Desenvolver hardware", "weight": 0 },
+      { "id": 2, "text": "Produzir software de qualidade de forma sistemática", "weight": 100 },
+      { "id": 3, "text": "Gerenciar bancos de dados", "weight": 0 },
+      { "id": 4, "text": "Criar interfaces gráficas", "weight": 0 }
+    ]
+  },
+  {
+    "id": 3002,
+    "quiz_id": 1001,
+    "position": 2,
+    "question_name": "Questão 2",
+    "question_type": "essay_question",
+    "question_text": "<p>Descreva com suas palavras o conceito de coesão e acoplamento em software.</p>",
+    "points_possible": 3,
+    "answers": []
+  },
+  {
+    "id": 3003,
+    "quiz_id": 1001,
+    "position": 3,
+    "question_name": "Questão 3",
+    "question_type": "true_false_question",
+    "question_text": "<p>Um software com alta coesão e baixo acoplamento é mais fácil de manter.</p>",
+    "points_possible": 1,
+    "answers": [
+      { "id": 10, "text": "Verdadeiro", "weight": 100 },
+      { "id": 11, "text": "Falso", "weight": 0 }
+    ]
+  }
+]

@@ -1,0 +1,22 @@
+{
+  "quiz_submissions": [
+    {
+      "id": 2001,
+      "quiz_id": 1001,
+      "user_id": 999,
+      "submission_id": 5555,
+      "attempt": 1,
+      "started_at": "2024-06-05T10:00:00Z",
+      "finished_at": null,
+      "end_at": "2024-06-05T10:30:00Z",
+      "time_spent": 0,
+      "score": null,
+      "kept_score": null,
+      "workflow_state": "untaken",
+      "overdue_and_needs_submission": false,
+      "validation_token": "TOKEN_ABC123DEF456GHI789"
+    }
+  ],
+  "quizzes": [],
+  "submissions": []
+}

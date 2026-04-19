@@ -29,10 +29,11 @@ npm run test:integration  # integration tests only
 | `services/canvasClient` | Auth injection, Link header parsing, domain validation, error propagation | Unit — MSW intercepts HTTP |
 | `repositories/*` | Correct endpoint construction, param passing, happy path + error paths | Unit — MSW intercepts HTTP |
 | `schemas/common` | Zod validation accepts/rejects boundary values | Unit — pure Zod |
-| `integration/server` | 30 tools visible, Phase 1 tool calls return expected content | In-memory MCP client ↔ server via `InMemoryTransport` |
+| `integration/server` | 38 tools visible, Phase 1 tool calls return expected content | In-memory MCP client ↔ server via `InMemoryTransport` |
 | `integration/tools.phase2` | Phase 2 tool calls: modules, pages, discussions, conversations, planner, grades, quizzes | In-memory MCP client ↔ server via `InMemoryTransport` |
+| `integration/tools.quiz-flow` | Phase 3 quiz-taking flow: list questions, start/recover attempt, answer (multi-type), complete, submissions, time left | In-memory MCP client ↔ server via `InMemoryTransport` |
 
-**122 tests, 16 test files, ~3.5s total runtime.**
+**152 tests, 17 test files, ~3.8s total runtime.**
 
 ### Key principle: never mock internal code
 

@@ -4,10 +4,10 @@
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue)](https://www.typescriptlang.org/)
 [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-1.6-purple)](https://modelcontextprotocol.io/)
-[![Tests](https://img.shields.io/badge/tests-122%20passing-brightgreen)](docs/CONTRIBUTING.md#testing)
+[![Tests](https://img.shields.io/badge/tests-152%20passing-brightgreen)](docs/CONTRIBUTING.md#testing)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**Canvas MCP Server** is a [Model Context Protocol](https://modelcontextprotocol.io/) server that bridges AI assistants to the [Canvas LMS REST API](https://canvas.instructure.com/doc/api/). It exposes **30 tools** covering the full student workflow.
+**Canvas MCP Server** is a [Model Context Protocol](https://modelcontextprotocol.io/) server that bridges AI assistants to the [Canvas LMS REST API](https://canvas.instructure.com/doc/api/). It exposes **38 tools** covering the full student workflow — including a complete quiz-taking flow (start attempt → answer questions → submit).
 
 Originally built for **PUC Minas** (`pucminas.instructure.com`), but works with any Canvas institution — just set `CANVAS_DOMAIN`.
 
@@ -15,7 +15,7 @@ Originally built for **PUC Minas** (`pucminas.instructure.com`), but works with 
 
 ## Features
 
-- **30 MCP tools** across 13 categories (courses, assignments, submissions, modules, pages, discussions, conversations, files, planner, grades, quizzes, calendar, announcements)
+- **38 MCP tools** across 13 categories (courses, assignments, submissions, modules, pages, discussions, conversations, files, planner, grades, quizzes + full quiz-taking flow, calendar, announcements)
 - **Dual output format** — every tool returns Markdown or JSON via `response_format`
 - **Pagination** — all list tools accept `per_page` and `page`
 - **Typed errors** — all Canvas API errors are mapped to descriptive messages; no raw stack traces leak to the AI
@@ -144,6 +144,7 @@ The server uses **stdio transport** — reads JSON-RPC from stdin, writes to std
 | Planner | `canvas_list_planner_notes`, `canvas_manage_planner_note` |
 | Grades | `canvas_get_course_grades` |
 | Quizzes | `canvas_list_quizzes`, `canvas_get_quiz` |
+| Quiz-Taking Flow | `canvas_list_quiz_questions`, `canvas_start_quiz_attempt`, `canvas_get_quiz_submission_questions`, `canvas_answer_quiz_question`, `canvas_complete_quiz_attempt`, `canvas_list_quiz_submissions`, `canvas_get_quiz_submission`, `canvas_get_quiz_time_left` |
 
 ---
 
@@ -163,13 +164,17 @@ The server uses **stdio transport** — reads JSON-RPC from stdin, writes to std
 
 Modules, Pages (HTML→Markdown), Discussions, Conversations/Inbox, File upload (3-step S3), Planner Notes, Grades, Quizzes.
 
-### Phase 3 — Future
+### Phase 3 — ✅ Partially Implemented
 
-- Quiz submissions (take a quiz via API)
-- Grading periods / GPA aggregation
-- OAuth 2.0 flow (browser-based auth)
-- File management (`canvas_list_files`, `canvas_download_file`)
-- Notification preferences
+- [x] **Quiz-taking flow** — full end-to-end: list questions, start attempt, answer (all question types with client-side validation), complete, review score, time left
+
+### Phase 4 — Future
+
+- [ ] Grading periods / GPA aggregation
+- [ ] OAuth 2.0 flow (browser-based auth)
+- [ ] File management (`canvas_list_files`, `canvas_download_file`)
+- [ ] Notification preferences
+- [ ] Quiz flag/unflag questions, file_upload_question type
 
 ---
 

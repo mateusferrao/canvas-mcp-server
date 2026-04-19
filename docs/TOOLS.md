@@ -107,7 +107,49 @@ All list tools accept:
 | Tool | Description |
 |---|---|
 | `canvas_list_quizzes` | Lists quizzes in a course with type, questions, points and due date |
-| `canvas_get_quiz` | Details for a specific quiz. Read-only (taking quizzes requires the Canvas UI) |
+| `canvas_get_quiz` | Details for a specific quiz (metadata) |
+
+## Quiz-Taking Flow (Phase 3)
+
+Complete end-to-end flow: list questions → start attempt → answer → submit → review score.
+
+| Tool | Description |
+|---|---|
+| `canvas_list_quiz_questions` | Lists quiz questions with type, points, and answer options. Optional `quiz_submission_id` + `attempt` to get the exact versioned question set for an attempt |
+| `canvas_start_quiz_attempt` | Creates a new attempt (timer starts). If an attempt is already in progress (409), recovers it automatically. Returns `submission_id`, `attempt`, `validation_token`, and `end_at` — **save these values** for subsequent calls |
+| `canvas_get_quiz_submission_questions` | Gets question states for an attempt in progress (current answers, flagged status). Optional `include_quiz_question` for full question text |
+| `canvas_answer_quiz_question` | Submits an answer for one question. Validates answer shape client-side by `question_type` before calling the API. Re-posting replaces the previous answer |
+| `canvas_complete_quiz_attempt` | **Irreversible.** Finalizes and submits the attempt. Requires `attempt` + `validation_token` from `canvas_start_quiz_attempt`. Returns final score |
+| `canvas_list_quiz_submissions` | Lists all past attempts for a quiz with scores and states |
+| `canvas_get_quiz_submission` | Gets details for a specific attempt (score, time spent, state) |
+| `canvas_get_quiz_time_left` | Returns seconds remaining and expiry time for an in-progress attempt |
+
+### Answer format by `question_type`
+
+| question_type | `answer` |
+|---|---|
+| `multiple_choice_question` / `true_false_question` | `number` — answer option ID |
+| `short_answer_question` / `essay_question` | `string` (essay accepts HTML) |
+| `multiple_answers_question` / `file_upload_question` | `number[]` — array of IDs |
+| `multiple_dropdowns_question` | `{ blank_name: answer_id }` |
+| `fill_in_multiple_blanks_question` | `{ blank_name: "text" }` |
+| `matching_question` | `[{ answer_id, match_id }]` |
+| `numerical_question` / `calculated_question` | `string` (e.g. `"13.4"`) |
+| `text_only_question` | no answer needed — tool returns informational message |
+
+### stateless `validation_token` flow
+
+Canvas issues `validation_token` **once** when the attempt is created. It is required by `canvas_answer_quiz_question` and `canvas_complete_quiz_attempt`. The MCP server does not cache it — the AI agent is responsible for reading it from the `canvas_start_quiz_attempt` response and passing it in subsequent calls.
+
+### End-to-end example
+
+> "Take quiz 1001 in course 101 and answer the multiple choice question."
+
+1. `canvas_list_quiz_questions` → inspect questions and answer IDs
+2. `canvas_start_quiz_attempt` → get `submission_id`, `attempt`, `validation_token`
+3. `canvas_answer_quiz_question` → submit answer (multiple_choice: `answer: 2`)
+4. `canvas_complete_quiz_attempt` → finalize
+5. `canvas_get_quiz_submission` → review final score
 
 ---
 

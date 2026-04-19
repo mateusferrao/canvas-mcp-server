@@ -82,3 +82,15 @@ export const PlannerNoteIdSchema = z
   .int()
   .positive()
   .describe("ID numérico da nota do planejador no Canvas");
+
+export const QuizSubmissionIdSchema = z
+  .number()
+  .int()
+  .positive()
+  .describe("ID numérico da submissão de quiz no Canvas (retornado por canvas_start_quiz_attempt)");
+
+export const QuizQuestionIdSchema = z
+  .number()
+  .int()
+  .positive()
+  .describe("ID numérico da questão do quiz no Canvas");
