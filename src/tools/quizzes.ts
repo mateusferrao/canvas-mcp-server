@@ -53,6 +53,7 @@ const ListQuestionsSchema = z
       "ID da tentativa (opcional). Se fornecido junto com attempt, retorna questões exatas daquela tentativa."
     ),
     attempt: z
+      .coerce
       .number()
       .int()
       .positive()
@@ -89,7 +90,7 @@ const GetSubmissionQuestionsSchema = z
 // Discriminated union by question_type for answer validation
 const answerBaseFields = {
   quiz_submission_id: QuizSubmissionIdSchema,
-  attempt: z.number().int().positive().describe("Número da tentativa (retornado por canvas_start_quiz_attempt)"),
+  attempt: z.coerce.number().int().positive().describe("Número da tentativa (retornado por canvas_start_quiz_attempt)"),
   validation_token: z.string().min(1).describe("Token de validação (retornado por canvas_start_quiz_attempt)"),
   question_id: QuizQuestionIdSchema,
 };
@@ -98,12 +99,12 @@ const AnswerQuizQuestionSchema = z.discriminatedUnion("question_type", [
   z.object({
     ...answerBaseFields,
     question_type: z.literal("multiple_choice_question"),
-    answer: z.number().describe("ID da opção de resposta"),
+    answer: z.coerce.number().describe("ID da opção de resposta"),
   }),
   z.object({
     ...answerBaseFields,
     question_type: z.literal("true_false_question"),
-    answer: z.number().describe("ID da opção (verdadeiro ou falso)"),
+    answer: z.coerce.number().describe("ID da opção (verdadeiro ou falso)"),
   }),
   z.object({
     ...answerBaseFields,
@@ -118,7 +119,7 @@ const AnswerQuizQuestionSchema = z.discriminatedUnion("question_type", [
   z.object({
     ...answerBaseFields,
     question_type: z.literal("multiple_answers_question"),
-    answer: z.array(z.number()).describe("Array de IDs das opções selecionadas"),
+    answer: z.array(z.coerce.number()).describe("Array de IDs das opções selecionadas"),
   }),
   z.object({
     ...answerBaseFields,
@@ -170,7 +171,7 @@ const CompleteAttemptSchema = z
     course_id: CourseIdSchema,
     quiz_id: QuizIdSchema,
     submission_id: QuizSubmissionIdSchema,
-    attempt: z.number().int().positive().describe("Número da tentativa (retornado por canvas_start_quiz_attempt)"),
+    attempt: z.coerce.number().int().positive().describe("Número da tentativa (retornado por canvas_start_quiz_attempt)"),
     validation_token: z.string().min(1).describe("Token de validação (retornado por canvas_start_quiz_attempt)"),
     access_code: z.string().optional().describe("Código de acesso, se o quiz exigir"),
   })
