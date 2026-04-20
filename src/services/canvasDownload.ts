@@ -94,7 +94,7 @@ export async function downloadCanvasFile(
       });
     }
 
-    const bytes = Buffer.from(finalResponse.data as ArrayBuffer);
+    const bytes = Buffer.from(finalResponse.data as unknown as ArrayBuffer);
 
     if (bytes.length > maxBytes) {
       return err({

@@ -104,7 +104,9 @@ export class DefaultDocumentExtractor implements DocumentExtractor {
   private async extractPdf(bytes: Buffer): Promise<Result<ExtractedText, DocumentError>> {
     try {
       // Lazy import to avoid bundling issues
-      const pdfParse = (await import("pdf-parse")).default;
+      // pdf-parse is CJS; in ESM interop .default holds the function, but types may disagree
+      const pdfModule = await import("pdf-parse");
+      const pdfParse = (pdfModule as unknown as { default: (buf: Buffer) => Promise<{ text: string; numpages: number }> }).default ?? pdfModule;
       const result = await pdfParse(bytes);
       const { text, truncated } = truncate(result.text ?? "");
       return ok({ text, method: "pdf", pages: result.numpages, truncated });

@@ -89,6 +89,39 @@ All list tools accept:
 |---|---|
 | `canvas_upload_file` | Uploads a file to Canvas (user's Files). Accepts `file_path` (local) or `file_content_base64`. Returns metadata including download URL |
 
+## Documents & Files (Phase 4)
+
+Text extraction from Canvas files — supports TXT, PDF, DOCX, and images (OCR via Google Cloud Vision).
+
+| Tool | Description |
+|---|---|
+| `canvas_list_files` | Lists files in a Canvas course. Filterable by `content_types`, `search_term`, sort order. |
+| `canvas_get_file` | Metadata for a single file: name, MIME type, size, download URL. |
+| `canvas_download_file` | Downloads file bytes as Base64. Use when raw binary is needed. For text extraction use `canvas_extract_document_text`. |
+| `canvas_extract_document_text` | Downloads and extracts text. TXT → UTF-8 decode. PDF → pdf-parse. DOCX → mammoth. Images → Google Cloud Vision OCR. Returns text + method + page count (PDF) + truncation flag. |
+| `canvas_resolve_task_files` | **Main use case.** Parses HTML description of an assignment, page, or discussion; finds all embedded Canvas file links; downloads + extracts text from each concurrently. Returns consolidated text per file. |
+
+### `canvas_resolve_task_files` parameters
+
+| Parameter | Type | Description |
+|---|---|---|
+| `kind` | `"assignment"` \| `"page"` \| `"discussion"` | Entity type |
+| `course_id` | number | Course ID |
+| `id` | number | ID of the assignment / page / discussion topic |
+| `response_format` | `"markdown"` \| `"json"` | Output format |
+
+### End-to-end example
+
+> "Read the files attached to assignment 501 in course 101."
+
+1. `canvas_resolve_task_files` with `kind: "assignment", course_id: 101, id: 501`
+   → finds Canvas file links in assignment description, extracts text from each
+
+Or individually:
+1. `canvas_get_assignment` to see the description
+2. `canvas_list_files` if needed to find file IDs
+3. `canvas_extract_document_text` per file
+
 ## Planner
 
 | Tool | Description |
@@ -238,3 +271,17 @@ Claude will combine `canvas_list_todo`, `canvas_list_upcoming_events`, and `canv
 > "Are there any new announcements in my courses?"
 
 Claude will call `canvas_list_courses` to get IDs, then `canvas_list_announcements` with the context codes.
+
+---
+
+**Read files attached to an assignment:**
+> "What does the PDF attached to the Trabalho 1 assignment say?"
+
+Claude calls `canvas_resolve_task_files` with `kind: "assignment"` — it parses the assignment description, finds all embedded Canvas file links, and extracts text from each concurrently.
+
+---
+
+**Extract text from a specific file:**
+> "Extract text from file ID 1234 in course 101."
+
+Claude calls `canvas_extract_document_text`.

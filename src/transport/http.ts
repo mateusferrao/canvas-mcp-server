@@ -6,7 +6,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { createClientFromToken } from "../services/canvasClient.js";
 import { createServer } from "../server.js";
 import { DEFAULT_CANVAS_DOMAIN } from "../constants.js";
-import { bearerAuth, extractCanvasToken, extractCanvasDomain } from "./auth.ts";
+import { bearerAuth, extractCanvasToken, extractCanvasDomain } from "./auth.js";
 import type { ClientContext, ClientResolver, TransportBootstrap } from "./types.js";
 
 // ── Session store ─────────────────────────────────────────────────────────────
