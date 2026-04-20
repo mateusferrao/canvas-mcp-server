@@ -214,6 +214,38 @@ export interface CanvasFile {
   size: number;
   folder_id: number;
   created_at: string;
+  // Extended fields (Phase 4)
+  mime_class?: string;
+  locked?: boolean;
+  hidden?: boolean;
+  updated_at?: string;
+}
+
+export interface FileLink {
+  fileId: number;
+  courseId: number | undefined;
+  linkText: string;
+  href: string;
+}
+
+export interface ExtractedText {
+  text: string;
+  method: "utf8" | "pdf" | "docx" | "ocr";
+  pages?: number;
+  truncated?: boolean;
+}
+
+export interface ResolvedTaskFiles {
+  sourceKind: "assignment" | "page" | "discussion";
+  sourceId: number;
+  courseId: number;
+  files: Array<{
+    fileId: number;
+    filename: string | undefined;
+    contentType: string;
+    extraction: ExtractedText | { error: string };
+  }>;
+  totalFiles: number;
 }
 
 export interface CanvasPlannerNote {

@@ -17,7 +17,7 @@ import {
 } from "../schemas/common.js";
 import { executeListTool } from "./base.js";
 import { formatError } from "../services/errors.js";
-import type { ICanvasClient } from "../services/canvasClient.js";
+import type { ClientResolver } from "../transport/types.js";
 
 const ListModulesSchema = z
   .object({
@@ -48,13 +48,12 @@ const MarkModuleItemDoneSchema = z
   })
   .strict();
 
-export function register(server: McpServer, client: ICanvasClient): void {
-  const repo = new ModulesRepository(client);
-  const mdFmt = new ModuleMarkdownFormatter();
-  const jsonFmt = new ModuleJsonFormatter();
-  const mdItemFmt = new ModuleItemMarkdownFormatter();
-  const jsonItemFmt = new ModuleItemJsonFormatter();
+const mdFmt = new ModuleMarkdownFormatter();
+const jsonFmt = new ModuleJsonFormatter();
+const mdItemFmt = new ModuleItemMarkdownFormatter();
+const jsonItemFmt = new ModuleItemJsonFormatter();
 
+export function register(server: McpServer, resolveClient: ClientResolver): void {
   server.registerTool(
     "canvas_list_modules",
     {
@@ -77,7 +76,9 @@ Retorna: módulos com estado de progresso (active, completed, etc).`,
         openWorldHint: true,
       },
     },
-    async (params) => {
+    async (params, extra) => {
+      const { client } = resolveClient(extra.sessionId);
+      const repo = new ModulesRepository(client);
       const fmt = selectFormatter(params.response_format, mdFmt, jsonFmt);
       return executeListTool(
         () =>
@@ -114,7 +115,9 @@ Retorna: itens (páginas, tarefas, quizzes, links externos) com requisitos de co
         openWorldHint: true,
       },
     },
-    async (params) => {
+    async (params, extra) => {
+      const { client } = resolveClient(extra.sessionId);
+      const repo = new ModulesRepository(client);
       const fmt = selectFormatter(params.response_format, mdItemFmt, jsonItemFmt);
       return executeListTool(
         () =>
@@ -148,7 +151,9 @@ Retorna: confirmação da marcação. Idempotente — chamar novamente não caus
         openWorldHint: true,
       },
     },
-    async (params) => {
+    async (params, extra) => {
+      const { client } = resolveClient(extra.sessionId);
+      const repo = new ModulesRepository(client);
       const result = await repo.markItemDone(
         params.course_id,
         params.module_id,

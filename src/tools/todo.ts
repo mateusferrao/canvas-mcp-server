@@ -8,9 +8,9 @@ import {
   AssignmentJsonFormatter,
   selectFormatter,
 } from "../services/formatters.js";
-import { PaginationSchema, ResponseFormatSchema } from "../schemas/common.js";
+import { ResponseFormatSchema } from "../schemas/common.js";
 import { executeListTool } from "./base.js";
-import type { ICanvasClient } from "../services/canvasClient.js";
+import type { ClientResolver } from "../transport/types.js";
 
 const TodoBaseSchema = z
   .object({
@@ -30,9 +30,12 @@ const ListMissingSchema = z
   })
   .strict();
 
-export function register(server: McpServer, client: ICanvasClient): void {
-  const repo = new TodoRepository(client);
+const todoMdFmt = new TodoMarkdownFormatter();
+const todoJsonFmt = new TodoJsonFormatter();
+const assignmentMdFmt = new AssignmentMarkdownFormatter();
+const assignmentJsonFmt = new AssignmentJsonFormatter();
 
+export function register(server: McpServer, resolveClient: ClientResolver): void {
   server.registerTool(
     "canvas_list_todo",
     {
@@ -54,12 +57,10 @@ Retorna: lista de itens pendentes com prazo e link.`,
         openWorldHint: true,
       },
     },
-    async (params) => {
-      const fmt = selectFormatter(
-        params.response_format,
-        new TodoMarkdownFormatter(),
-        new TodoJsonFormatter()
-      );
+    async (params, extra) => {
+      const { client } = resolveClient(extra.sessionId);
+      const repo = new TodoRepository(client);
+      const fmt = selectFormatter(params.response_format, todoMdFmt, todoJsonFmt);
       return executeListTool(
         () => repo.listTodo(params.per_page),
         fmt,
@@ -89,12 +90,10 @@ Retorna: lista de eventos e tarefas próximas ordenadas por data.`,
         openWorldHint: true,
       },
     },
-    async (params) => {
-      const fmt = selectFormatter(
-        params.response_format,
-        new AssignmentMarkdownFormatter(),
-        new AssignmentJsonFormatter()
-      );
+    async (params, extra) => {
+      const { client } = resolveClient(extra.sessionId);
+      const repo = new TodoRepository(client);
+      const fmt = selectFormatter(params.response_format, assignmentMdFmt, assignmentJsonFmt);
       return executeListTool(
         () => repo.listUpcoming(params.per_page),
         fmt,
@@ -125,12 +124,10 @@ Retorna: lista de tarefas faltando com prazo original.`,
         openWorldHint: true,
       },
     },
-    async (params) => {
-      const fmt = selectFormatter(
-        params.response_format,
-        new AssignmentMarkdownFormatter(),
-        new AssignmentJsonFormatter()
-      );
+    async (params, extra) => {
+      const { client } = resolveClient(extra.sessionId);
+      const repo = new TodoRepository(client);
+      const fmt = selectFormatter(params.response_format, assignmentMdFmt, assignmentJsonFmt);
       return executeListTool(
         () => repo.listMissing({ per_page: params.per_page, course_ids: params.course_ids }),
         fmt,

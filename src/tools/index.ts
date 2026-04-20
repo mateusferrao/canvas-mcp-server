@@ -1,5 +1,5 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { ICanvasClient } from "../services/canvasClient.js";
+import type { ClientResolver } from "../transport/types.js";
 import * as courses from "./courses.js";
 import * as assignments from "./assignments.js";
 import * as submissions from "./submissions.js";
@@ -16,6 +16,8 @@ import * as planner from "./planner.js";
 import * as grades from "./grades.js";
 import * as quizzes from "./quizzes.js";
 import * as files from "./files.js";
+// Phase 4
+import * as documents from "./documents.js";
 
 /**
  * Registry — registra todos os tools no servidor MCP.
@@ -23,23 +25,25 @@ import * as files from "./files.js";
  */
 export function registerAllTools(
   server: McpServer,
-  client: ICanvasClient
+  resolveClient: ClientResolver
 ): void {
   // Phase 1
-  courses.register(server, client);
-  assignments.register(server, client);
-  submissions.register(server, client);
-  todo.register(server, client);
-  calendar.register(server, client);
-  announcements.register(server, client);
-  profile.register(server, client);
+  courses.register(server, resolveClient);
+  assignments.register(server, resolveClient);
+  submissions.register(server, resolveClient);
+  todo.register(server, resolveClient);
+  calendar.register(server, resolveClient);
+  announcements.register(server, resolveClient);
+  profile.register(server, resolveClient);
   // Phase 2
-  modules.register(server, client);
-  pages.register(server, client);
-  discussions.register(server, client);
-  conversations.register(server, client);
-  planner.register(server, client);
-  grades.register(server, client);
-  quizzes.register(server, client);
-  files.register(server, client);
+  modules.register(server, resolveClient);
+  pages.register(server, resolveClient);
+  discussions.register(server, resolveClient);
+  conversations.register(server, resolveClient);
+  planner.register(server, resolveClient);
+  grades.register(server, resolveClient);
+  quizzes.register(server, resolveClient);
+  files.register(server, resolveClient);
+  // Phase 4 — documents + OCR
+  documents.register(server, resolveClient);
 }

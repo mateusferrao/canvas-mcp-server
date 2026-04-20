@@ -13,7 +13,7 @@ import {
   AssignmentIdSchema,
 } from "../schemas/common.js";
 import { executeListTool, executeSingleTool } from "./base.js";
-import type { ICanvasClient } from "../services/canvasClient.js";
+import type { ClientResolver } from "../transport/types.js";
 
 const ListAssignmentsSchema = z
   .object({
@@ -40,11 +40,10 @@ const GetAssignmentSchema = z
   })
   .strict();
 
-export function register(server: McpServer, client: ICanvasClient): void {
-  const repo = new AssignmentsRepository(client);
-  const mdFmt = new AssignmentMarkdownFormatter();
-  const jsonFmt = new AssignmentJsonFormatter();
+const mdFmt = new AssignmentMarkdownFormatter();
+const jsonFmt = new AssignmentJsonFormatter();
 
+export function register(server: McpServer, resolveClient: ClientResolver): void {
   server.registerTool(
     "canvas_list_assignments",
     {
@@ -69,7 +68,9 @@ Retorna: lista de tarefas com prazo, pontos e tipos de entrega.`,
         openWorldHint: true,
       },
     },
-    async (params) => {
+    async (params, extra) => {
+      const { client } = resolveClient(extra.sessionId);
+      const repo = new AssignmentsRepository(client);
       const fmt = selectFormatter(params.response_format, mdFmt, jsonFmt);
       return executeListTool(
         () => repo.list({
@@ -106,7 +107,9 @@ Retorna: detalhes completos com prazo, pontuação e estado de submissão.`,
         openWorldHint: true,
       },
     },
-    async (params) => {
+    async (params, extra) => {
+      const { client } = resolveClient(extra.sessionId);
+      const repo = new AssignmentsRepository(client);
       const fmt = selectFormatter(params.response_format, mdFmt, jsonFmt);
       return executeSingleTool(
         () => repo.get(params.course_id, params.assignment_id),

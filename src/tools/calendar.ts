@@ -8,7 +8,7 @@ import {
 } from "../services/formatters.js";
 import { ResponseFormatSchema } from "../schemas/common.js";
 import { executeListTool } from "./base.js";
-import type { ICanvasClient } from "../services/canvasClient.js";
+import type { ClientResolver } from "../transport/types.js";
 
 const ListCalendarSchema = z
   .object({
@@ -29,9 +29,10 @@ const ListCalendarSchema = z
   })
   .strict();
 
-export function register(server: McpServer, client: ICanvasClient): void {
-  const repo = new CalendarRepository(client);
+const mdFmt = new CalendarMarkdownFormatter();
+const jsonFmt = new CalendarJsonFormatter();
 
+export function register(server: McpServer, resolveClient: ClientResolver): void {
   server.registerTool(
     "canvas_list_calendar_events",
     {
@@ -59,12 +60,10 @@ Retorna: lista de eventos/tarefas no período especificado.`,
         openWorldHint: true,
       },
     },
-    async (params) => {
-      const fmt = selectFormatter(
-        params.response_format,
-        new CalendarMarkdownFormatter(),
-        new CalendarJsonFormatter()
-      );
+    async (params, extra) => {
+      const { client } = resolveClient(extra.sessionId);
+      const repo = new CalendarRepository(client);
+      const fmt = selectFormatter(params.response_format, mdFmt, jsonFmt);
       return executeListTool(
         () => repo.listEvents({
           contextCodes: params.context_codes,

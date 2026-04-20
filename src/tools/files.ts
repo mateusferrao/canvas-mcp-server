@@ -6,8 +6,8 @@ import { FilesRepository } from "../repositories/files.js";
 import { FileMarkdownFormatter, FileJsonFormatter, selectFormatter } from "../services/formatters.js";
 import { ResponseFormatSchema } from "../schemas/common.js";
 import { formatError } from "../services/errors.js";
-import type { ICanvasClient } from "../services/canvasClient.js";
-import { API_VERSION, DEFAULT_CANVAS_DOMAIN } from "../constants.js";
+import { API_VERSION } from "../constants.js";
+import type { ClientResolver } from "../transport/types.js";
 
 const MAX_UPLOAD_BYTES =
   parseInt(process.env["CANVAS_UPLOAD_MAX_BYTES"] ?? "0") || 50 * 1024 * 1024;
@@ -48,15 +48,10 @@ const UploadFileSchema = z
     ])
   );
 
-export function register(server: McpServer, client: ICanvasClient): void {
-  const token = process.env["CANVAS_API_TOKEN"] ?? "";
-  const domain = process.env["CANVAS_DOMAIN"] ?? DEFAULT_CANVAS_DOMAIN;
-  const baseUrl = `https://${domain}/api/${API_VERSION}`;
+const mdFmt = new FileMarkdownFormatter();
+const jsonFmt = new FileJsonFormatter();
 
-  const repo = new FilesRepository(client, token, baseUrl);
-  const mdFmt = new FileMarkdownFormatter();
-  const jsonFmt = new FileJsonFormatter();
-
+export function register(server: McpServer, resolveClient: ClientResolver): void {
   server.registerTool(
     "canvas_upload_file",
     {
@@ -88,7 +83,11 @@ Retorna: metadados do arquivo com URL de download.`,
         openWorldHint: true,
       },
     },
-    async (params) => {
+    async (params, extra) => {
+      const { client, token, domain } = resolveClient(extra.sessionId);
+      const baseUrl = `https://${domain}/api/${API_VERSION}`;
+      const repo = new FilesRepository(client, token, baseUrl);
+
       let fileBuffer: Buffer;
 
       if (params.file_path) {
@@ -101,12 +100,7 @@ Retorna: metadados do arquivo com URL de download.`,
         const stat = fs.statSync(absPath);
         if (stat.size > MAX_UPLOAD_BYTES) {
           return {
-            content: [
-              {
-                type: "text",
-                text: `Arquivo excede o tamanho máximo de ${(MAX_UPLOAD_BYTES / 1024 / 1024).toFixed(0)}MB.`,
-              },
-            ],
+            content: [{ type: "text", text: `Arquivo excede o tamanho máximo de ${(MAX_UPLOAD_BYTES / 1024 / 1024).toFixed(0)}MB.` }],
           };
         }
         fileBuffer = fs.readFileSync(absPath);
@@ -114,12 +108,7 @@ Retorna: metadados do arquivo com URL de download.`,
         fileBuffer = Buffer.from(params.file_content_base64!, "base64");
         if (fileBuffer.byteLength > MAX_UPLOAD_BYTES) {
           return {
-            content: [
-              {
-                type: "text",
-                text: `Arquivo excede o tamanho máximo de ${(MAX_UPLOAD_BYTES / 1024 / 1024).toFixed(0)}MB.`,
-              },
-            ],
+            content: [{ type: "text", text: `Arquivo excede o tamanho máximo de ${(MAX_UPLOAD_BYTES / 1024 / 1024).toFixed(0)}MB.` }],
           };
         }
       }

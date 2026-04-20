@@ -24,7 +24,7 @@ import {
 } from "../schemas/common.js";
 import { executeListTool, executeSingleTool } from "./base.js";
 import { formatError } from "../services/errors.js";
-import type { ICanvasClient } from "../services/canvasClient.js";
+import type { ClientResolver } from "../transport/types.js";
 
 // ── Schemas ───────────────────────────────────────────────────────────────────
 
@@ -96,74 +96,18 @@ const answerBaseFields = {
 };
 
 const AnswerQuizQuestionSchema = z.discriminatedUnion("question_type", [
-  z.object({
-    ...answerBaseFields,
-    question_type: z.literal("multiple_choice_question"),
-    answer: z.coerce.number().describe("ID da opção de resposta"),
-  }),
-  z.object({
-    ...answerBaseFields,
-    question_type: z.literal("true_false_question"),
-    answer: z.coerce.number().describe("ID da opção (verdadeiro ou falso)"),
-  }),
-  z.object({
-    ...answerBaseFields,
-    question_type: z.literal("short_answer_question"),
-    answer: z.string().describe("Texto da resposta (≤16KB)"),
-  }),
-  z.object({
-    ...answerBaseFields,
-    question_type: z.literal("essay_question"),
-    answer: z.string().describe("HTML da resposta (≤16KB)"),
-  }),
-  z.object({
-    ...answerBaseFields,
-    question_type: z.literal("multiple_answers_question"),
-    answer: z.array(z.coerce.number()).describe("Array de IDs das opções selecionadas"),
-  }),
-  z.object({
-    ...answerBaseFields,
-    question_type: z.literal("multiple_dropdowns_question"),
-    answer: z
-      .record(z.string(), z.number())
-      .describe('Mapa de blank_name → answer_id (ex: {"color": 6})'),
-  }),
-  z.object({
-    ...answerBaseFields,
-    question_type: z.literal("fill_in_multiple_blanks_question"),
-    answer: z
-      .record(z.string(), z.string())
-      .describe('Mapa de blank_name → texto (ex: {"color1": "azul"})'),
-  }),
-  z.object({
-    ...answerBaseFields,
-    question_type: z.literal("matching_question"),
-    answer: z
-      .array(z.object({ answer_id: z.number(), match_id: z.number() }))
-      .describe("Array de { answer_id, match_id }"),
-  }),
-  z.object({
-    ...answerBaseFields,
-    question_type: z.literal("numerical_question"),
-    answer: z.string().describe("Número como string (ex: '13.4')"),
-  }),
-  z.object({
-    ...answerBaseFields,
-    question_type: z.literal("calculated_question"),
-    answer: z.string().describe("Número como string"),
-  }),
-  z.object({
-    ...answerBaseFields,
-    question_type: z.literal("file_upload_question"),
-    answer: z
-      .array(z.number())
-      .describe("Array de attachment IDs (use canvas_upload_file primeiro)"),
-  }),
-  z.object({
-    ...answerBaseFields,
-    question_type: z.literal("text_only_question"),
-    answer: z.undefined().describe("Questão de exibição apenas — sem resposta necessária"),
-  }),
+  z.object({ ...answerBaseFields, question_type: z.literal("multiple_choice_question"), answer: z.coerce.number().describe("ID da opção de resposta") }),
+  z.object({ ...answerBaseFields, question_type: z.literal("true_false_question"), answer: z.coerce.number().describe("ID da opção (verdadeiro ou falso)") }),
+  z.object({ ...answerBaseFields, question_type: z.literal("short_answer_question"), answer: z.string().describe("Texto da resposta (≤16KB)") }),
+  z.object({ ...answerBaseFields, question_type: z.literal("essay_question"), answer: z.string().describe("HTML da resposta (≤16KB)") }),
+  z.object({ ...answerBaseFields, question_type: z.literal("multiple_answers_question"), answer: z.array(z.coerce.number()).describe("Array de IDs das opções selecionadas") }),
+  z.object({ ...answerBaseFields, question_type: z.literal("multiple_dropdowns_question"), answer: z.record(z.string(), z.number()).describe('Mapa de blank_name → answer_id (ex: {"color": 6})') }),
+  z.object({ ...answerBaseFields, question_type: z.literal("fill_in_multiple_blanks_question"), answer: z.record(z.string(), z.string()).describe('Mapa de blank_name → texto (ex: {"color1": "azul"})') }),
+  z.object({ ...answerBaseFields, question_type: z.literal("matching_question"), answer: z.array(z.object({ answer_id: z.number(), match_id: z.number() })).describe("Array de { answer_id, match_id }") }),
+  z.object({ ...answerBaseFields, question_type: z.literal("numerical_question"), answer: z.string().describe("Número como string (ex: '13.4')") }),
+  z.object({ ...answerBaseFields, question_type: z.literal("calculated_question"), answer: z.string().describe("Número como string") }),
+  z.object({ ...answerBaseFields, question_type: z.literal("file_upload_question"), answer: z.array(z.number()).describe("Array de attachment IDs (use canvas_upload_file primeiro)") }),
+  z.object({ ...answerBaseFields, question_type: z.literal("text_only_question"), answer: z.undefined().describe("Questão de exibição apenas — sem resposta necessária") }),
 ]);
 
 const CompleteAttemptSchema = z
@@ -203,23 +147,22 @@ const GetTimeLeftSchema = z
   })
   .strict();
 
+// ── Formatters (stateless — safe to share across sessions) ───────────────────
+
+const mdFmt = new QuizMarkdownFormatter();
+const jsonFmt = new QuizJsonFormatter();
+const qMdFmt = new QuizQuestionMarkdownFormatter();
+const qJsonFmt = new QuizQuestionJsonFormatter();
+const sMdFmt = new QuizSubmissionMarkdownFormatter();
+const sJsonFmt = new QuizSubmissionJsonFormatter();
+const sqMdFmt = new QuizSubmissionQuestionMarkdownFormatter();
+const sqJsonFmt = new QuizSubmissionQuestionJsonFormatter();
+const tMdFmt = new QuizTimeLeftMarkdownFormatter();
+const tJsonFmt = new QuizTimeLeftJsonFormatter();
+
 // ── Register ──────────────────────────────────────────────────────────────────
 
-export function register(server: McpServer, client: ICanvasClient): void {
-  const repo = new QuizzesRepository(client);
-  const mdFmt = new QuizMarkdownFormatter();
-  const jsonFmt = new QuizJsonFormatter();
-  const qMdFmt = new QuizQuestionMarkdownFormatter();
-  const qJsonFmt = new QuizQuestionJsonFormatter();
-  const sMdFmt = new QuizSubmissionMarkdownFormatter();
-  const sJsonFmt = new QuizSubmissionJsonFormatter();
-  const sqMdFmt = new QuizSubmissionQuestionMarkdownFormatter();
-  const sqJsonFmt = new QuizSubmissionQuestionJsonFormatter();
-  const tMdFmt = new QuizTimeLeftMarkdownFormatter();
-  const tJsonFmt = new QuizTimeLeftJsonFormatter();
-
-  // ── Existing tools ────────────────────────────────────────────────────────
-
+export function register(server: McpServer, resolveClient: ClientResolver): void {
   server.registerTool(
     "canvas_list_quizzes",
     {
@@ -235,22 +178,14 @@ Args:
 
 Retorna: quizzes com prazo, pontos e número de questões.`,
       inputSchema: ListQuizzesSchema,
-      annotations: {
-        readOnlyHint: true,
-        destructiveHint: false,
-        idempotentHint: true,
-        openWorldHint: true,
-      },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
-    async (params) => {
+    async (params, extra) => {
+      const { client } = resolveClient(extra.sessionId);
+      const repo = new QuizzesRepository(client);
       const fmt = selectFormatter(params.response_format, mdFmt, jsonFmt);
       return executeListTool(
-        () =>
-          repo.list(params.course_id, {
-            per_page: params.per_page,
-            page: params.page,
-            search_term: params.search_term,
-          }),
+        () => repo.list(params.course_id, { per_page: params.per_page, page: params.page, search_term: params.search_term }),
         fmt,
         params.response_format
       );
@@ -270,23 +205,15 @@ Args:
 
 Retorna: detalhes do quiz (tipo, questões, tempo, tentativas, prazo).`,
       inputSchema: GetQuizSchema,
-      annotations: {
-        readOnlyHint: true,
-        destructiveHint: false,
-        idempotentHint: true,
-        openWorldHint: true,
-      },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
-    async (params) => {
+    async (params, extra) => {
+      const { client } = resolveClient(extra.sessionId);
+      const repo = new QuizzesRepository(client);
       const fmt = selectFormatter(params.response_format, mdFmt, jsonFmt);
-      return executeSingleTool(
-        () => repo.get(params.course_id, params.quiz_id),
-        fmt
-      );
+      return executeSingleTool(() => repo.get(params.course_id, params.quiz_id), fmt);
     }
   );
-
-  // ── Phase 3: Quiz-taking flow ─────────────────────────────────────────────
 
   server.registerTool(
     "canvas_list_quiz_questions",
@@ -297,31 +224,26 @@ Retorna: detalhes do quiz (tipo, questões, tempo, tentativas, prazo).`,
 Args:
   - course_id: ID do curso
   - quiz_id: ID do quiz
-  - quiz_submission_id: ID da tentativa (opcional — usar junto com attempt para obter versão exata das questões daquela tentativa)
+  - quiz_submission_id: ID da tentativa (opcional)
   - attempt: número da tentativa (opcional, usar com quiz_submission_id)
   - per_page: 1-100 (default: 25)
-  - page: número da página
   - response_format: "markdown" | "json"
 
-Retorna: questões com tipo, pontos e opções de resposta (para multiple_choice/true_false).`,
+Retorna: questões com tipo, pontos e opções de resposta.`,
       inputSchema: ListQuestionsSchema,
-      annotations: {
-        readOnlyHint: true,
-        destructiveHint: false,
-        idempotentHint: true,
-        openWorldHint: true,
-      },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
-    async (params) => {
+    async (params, extra) => {
+      const { client } = resolveClient(extra.sessionId);
+      const repo = new QuizzesRepository(client);
       const fmt = selectFormatter(params.response_format, qMdFmt, qJsonFmt);
       return executeListTool(
-        () =>
-          repo.listQuestions(params.course_id, params.quiz_id, {
-            quiz_submission_id: params.quiz_submission_id,
-            quiz_submission_attempt: params.attempt,
-            per_page: params.per_page,
-            page: params.page,
-          }),
+        () => repo.listQuestions(params.course_id, params.quiz_id, {
+          quiz_submission_id: params.quiz_submission_id,
+          quiz_submission_attempt: params.attempt,
+          per_page: params.per_page,
+          page: params.page,
+        }),
         fmt,
         params.response_format
       );
@@ -343,29 +265,18 @@ Retorna: dados da tentativa incluindo submission_id, attempt e validation_token.
 
 ATENÇÃO: O timer começa ao chamar esta ferramenta. Guarde o validation_token e o attempt retornados — eles são necessários para responder questões e submeter.`,
       inputSchema: StartAttemptSchema,
-      annotations: {
-        readOnlyHint: false,
-        destructiveHint: false,
-        idempotentHint: false,
-        openWorldHint: true,
-      },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     },
-    async (params) => {
-      const result = await repo.startAttempt(
-        params.course_id,
-        params.quiz_id,
-        params.access_code
-      );
+    async (params, extra) => {
+      const { client } = resolveClient(extra.sessionId);
+      const repo = new QuizzesRepository(client);
+      const result = await repo.startAttempt(params.course_id, params.quiz_id, params.access_code);
       if (!result.ok) {
         return { content: [{ type: "text", text: formatError(result.error) }] };
       }
       const s = result.value;
-      const fmt = new QuizSubmissionMarkdownFormatter();
-      const text = fmt.format(s);
-      return {
-        content: [{ type: "text", text }],
-        structuredContent: s as unknown as Record<string, unknown>,
-      };
+      const text = sMdFmt.format(s);
+      return { content: [{ type: "text", text }], structuredContent: s as unknown as Record<string, unknown> };
     }
   );
 
@@ -373,36 +284,27 @@ ATENÇÃO: O timer começa ao chamar esta ferramenta. Guarde o validation_token 
     "canvas_get_quiz_submission_questions",
     {
       title: "Obter Questões da Tentativa de Quiz Canvas",
-      description: `Obtém as questões de uma tentativa de quiz em andamento, mostrando o estado atual das respostas.
+      description: `Obtém as questões de uma tentativa de quiz em andamento.
 
 Args:
   - quiz_submission_id: ID da tentativa (retornado por canvas_start_quiz_attempt)
-  - include_quiz_question: incluir dados completos da questão (enunciado, opções) — default: false
+  - include_quiz_question: incluir dados completos da questão — default: false
   - response_format: "markdown" | "json"
 
-Retorna: questões com estado atual de resposta e flag.`,
+Retorna: questões com estado atual de resposta.`,
       inputSchema: GetSubmissionQuestionsSchema,
-      annotations: {
-        readOnlyHint: true,
-        destructiveHint: false,
-        idempotentHint: true,
-        openWorldHint: true,
-      },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
-    async (params) => {
-      const result = await repo.getSubmissionQuestions(
-        params.quiz_submission_id,
-        params.include_quiz_question
-      );
+    async (params, extra) => {
+      const { client } = resolveClient(extra.sessionId);
+      const repo = new QuizzesRepository(client);
+      const result = await repo.getSubmissionQuestions(params.quiz_submission_id, params.include_quiz_question);
       if (!result.ok) {
         return { content: [{ type: "text", text: formatError(result.error) }] };
       }
       const fmt = selectFormatter(params.response_format, sqMdFmt, sqJsonFmt);
       const text = fmt.formatList(result.value, result.value.length);
-      return {
-        content: [{ type: "text", text }],
-        structuredContent: { items: result.value } as unknown as Record<string, unknown>,
-      };
+      return { content: [{ type: "text", text }], structuredContent: { items: result.value } as unknown as Record<string, unknown> };
     }
   );
 
@@ -410,45 +312,24 @@ Retorna: questões com estado atual de resposta e flag.`,
     "canvas_answer_quiz_question",
     {
       title: "Responder Questão de Quiz Canvas",
-      description: `Registra a resposta a uma questão de quiz em andamento. Repostar substitui a resposta anterior.
+      description: `Registra a resposta a uma questão de quiz em andamento.
 
 Args:
-  - quiz_submission_id: ID da tentativa (retornado por canvas_start_quiz_attempt)
-  - attempt: número da tentativa (retornado por canvas_start_quiz_attempt)
-  - validation_token: token de validação (retornado por canvas_start_quiz_attempt)
-  - question_id: ID da questão (retornado por canvas_list_quiz_questions)
-  - question_type: tipo da questão — determina o formato de answer
-  - answer: resposta no formato correto para o question_type:
-    - multiple_choice_question / true_false_question: número (ID da opção)
-    - short_answer_question / essay_question: string
-    - multiple_answers_question / file_upload_question: array de números
-    - multiple_dropdowns_question: { blank_name: answer_id }
-    - fill_in_multiple_blanks_question: { blank_name: "texto" }
-    - matching_question: [{ answer_id, match_id }]
-    - numerical_question / calculated_question: string numérica (ex: "13.4")
-    - text_only_question: não requer resposta
+  - quiz_submission_id, attempt, validation_token: retornados por canvas_start_quiz_attempt
+  - question_id: ID da questão
+  - question_type: tipo da questão (determina formato de answer)
+  - answer: resposta no formato correto para o question_type
 
 ATENÇÃO: Esta operação altera o estado do quiz no Canvas.`,
       inputSchema: AnswerQuizQuestionSchema,
-      annotations: {
-        readOnlyHint: false,
-        destructiveHint: false,
-        idempotentHint: false,
-        openWorldHint: true,
-      },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     },
-    async (params) => {
+    async (params, extra) => {
       if (params.question_type === "text_only_question") {
-        return {
-          content: [
-            {
-              type: "text",
-              text: "Questão do tipo text_only não requer resposta — é apenas exibição de texto.",
-            },
-          ],
-        };
+        return { content: [{ type: "text", text: "Questão do tipo text_only não requer resposta — é apenas exibição de texto." }] };
       }
-
+      const { client } = resolveClient(extra.sessionId);
+      const repo = new QuizzesRepository(client);
       const result = await repo.answerQuestion(params.quiz_submission_id, {
         attempt: params.attempt,
         validationToken: params.validation_token,
@@ -460,10 +341,7 @@ ATENÇÃO: Esta operação altera o estado do quiz no Canvas.`,
       }
       const answered = result.value[0];
       const text = `Resposta registrada com sucesso!\n- Questão ID: ${params.question_id}\n- Resposta: ${JSON.stringify(answered?.answer ?? params.answer)}`;
-      return {
-        content: [{ type: "text", text }],
-        structuredContent: { items: result.value } as unknown as Record<string, unknown>,
-      };
+      return { content: [{ type: "text", text }], structuredContent: { items: result.value } as unknown as Record<string, unknown> };
     }
   );
 
@@ -471,48 +349,31 @@ ATENÇÃO: Esta operação altera o estado do quiz no Canvas.`,
     "canvas_complete_quiz_attempt",
     {
       title: "Completar Tentativa de Quiz Canvas",
-      description: `Finaliza e submete uma tentativa de quiz. Após esta chamada, as respostas não podem ser editadas.
+      description: `Finaliza e submete uma tentativa de quiz.
 
 Args:
-  - course_id: ID do curso
-  - quiz_id: ID do quiz
-  - submission_id: ID da tentativa (retornado por canvas_start_quiz_attempt)
-  - attempt: número da tentativa (retornado por canvas_start_quiz_attempt)
-  - validation_token: token de validação (retornado por canvas_start_quiz_attempt)
-  - access_code: código de acesso, se o quiz exigir (opcional)
+  - course_id, quiz_id: IDs do contexto
+  - submission_id, attempt, validation_token: retornados por canvas_start_quiz_attempt
+  - access_code: código de acesso (opcional)
 
-Retorna: resultado final com nota e estado da tentativa.
-
-**ATENÇÃO: OPERAÇÃO IRREVERSÍVEL.** Após esta chamada as respostas não podem ser editadas. Confirme antes de prosseguir.`,
+**ATENÇÃO: OPERAÇÃO IRREVERSÍVEL — after this call, answers cannot be edited.** Confirme antes de prosseguir.`,
       inputSchema: CompleteAttemptSchema,
-      annotations: {
-        readOnlyHint: false,
-        destructiveHint: false,
-        idempotentHint: false,
-        openWorldHint: true,
-      },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     },
-    async (params) => {
-      const result = await repo.completeAttempt(
-        params.course_id,
-        params.quiz_id,
-        params.submission_id,
-        {
-          attempt: params.attempt,
-          validationToken: params.validation_token,
-          accessCode: params.access_code,
-        }
-      );
+    async (params, extra) => {
+      const { client } = resolveClient(extra.sessionId);
+      const repo = new QuizzesRepository(client);
+      const result = await repo.completeAttempt(params.course_id, params.quiz_id, params.submission_id, {
+        attempt: params.attempt,
+        validationToken: params.validation_token,
+        accessCode: params.access_code,
+      });
       if (!result.ok) {
         return { content: [{ type: "text", text: formatError(result.error) }] };
       }
       const s = result.value;
-      const fmt = new QuizSubmissionMarkdownFormatter();
-      const text = `Tentativa concluída com sucesso!\n\n${fmt.format(s)}`;
-      return {
-        content: [{ type: "text", text }],
-        structuredContent: s as unknown as Record<string, unknown>,
-      };
+      const text = `Tentativa concluída com sucesso!\n\n${sMdFmt.format(s)}`;
+      return { content: [{ type: "text", text }], structuredContent: s as unknown as Record<string, unknown> };
     }
   );
 
@@ -529,24 +390,18 @@ Args:
 
 Retorna: lista de tentativas com nota, estado e datas.`,
       inputSchema: ListSubmissionsSchema,
-      annotations: {
-        readOnlyHint: true,
-        destructiveHint: false,
-        idempotentHint: true,
-        openWorldHint: true,
-      },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
-    async (params) => {
+    async (params, extra) => {
+      const { client } = resolveClient(extra.sessionId);
+      const repo = new QuizzesRepository(client);
       const result = await repo.listSubmissions(params.course_id, params.quiz_id);
       if (!result.ok) {
         return { content: [{ type: "text", text: formatError(result.error) }] };
       }
       const fmt = selectFormatter(params.response_format, sMdFmt, sJsonFmt);
       const text = fmt.formatList(result.value, result.value.length);
-      return {
-        content: [{ type: "text", text }],
-        structuredContent: { items: result.value } as unknown as Record<string, unknown>,
-      };
+      return { content: [{ type: "text", text }], structuredContent: { items: result.value } as unknown as Record<string, unknown> };
     }
   );
 
@@ -564,19 +419,13 @@ Args:
 
 Retorna: detalhes da tentativa com nota, tempo gasto e estado.`,
       inputSchema: GetSubmissionSchema,
-      annotations: {
-        readOnlyHint: true,
-        destructiveHint: false,
-        idempotentHint: true,
-        openWorldHint: true,
-      },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
-    async (params) => {
+    async (params, extra) => {
+      const { client } = resolveClient(extra.sessionId);
+      const repo = new QuizzesRepository(client);
       const fmt = selectFormatter(params.response_format, sMdFmt, sJsonFmt);
-      return executeSingleTool(
-        () => repo.getSubmission(params.course_id, params.quiz_id, params.submission_id),
-        fmt
-      );
+      return executeSingleTool(() => repo.getSubmission(params.course_id, params.quiz_id, params.submission_id), fmt);
     }
   );
 
@@ -594,19 +443,13 @@ Args:
 
 Retorna: tempo restante em segundos e horário de expiração.`,
       inputSchema: GetTimeLeftSchema,
-      annotations: {
-        readOnlyHint: true,
-        destructiveHint: false,
-        idempotentHint: true,
-        openWorldHint: true,
-      },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
-    async (params) => {
+    async (params, extra) => {
+      const { client } = resolveClient(extra.sessionId);
+      const repo = new QuizzesRepository(client);
       const fmt = selectFormatter(params.response_format, tMdFmt, tJsonFmt);
-      return executeSingleTool(
-        () => repo.getTimeLeft(params.course_id, params.quiz_id, params.submission_id),
-        fmt
-      );
+      return executeSingleTool(() => repo.getTimeLeft(params.course_id, params.quiz_id, params.submission_id), fmt);
     }
   );
 }

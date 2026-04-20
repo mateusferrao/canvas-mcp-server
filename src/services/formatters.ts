@@ -20,7 +20,9 @@ import type {
   CanvasSubmission,
   CanvasTodoItem,
   CanvasUser,
+  ResolvedTaskFiles,
 } from "../types.js";
+import type { ExtractedText } from "./documentExtractor.js";
 import { htmlToMarkdown } from "./markdown.js";
 
 export enum ResponseFormat {
@@ -776,6 +778,82 @@ export class QuizTimeLeftJsonFormatter implements Formatter<CanvasQuizTimeLeft> 
   }
 
   formatList(items: CanvasQuizTimeLeft[]): string {
+    return JSON.stringify(items, null, 2);
+  }
+}
+
+// ─── Document / OCR formatters (Phase 4) ─────────────────────────────────────
+
+export class ExtractedTextMarkdownFormatter implements Formatter<ExtractedText> {
+  format(e: ExtractedText): string {
+    const lines = [
+      `## Texto Extraído`,
+      `- **Método**: ${e.method}`,
+      e.pages != null ? `- **Páginas**: ${e.pages}` : "",
+      e.truncated ? "- **⚠️ Truncado**: o texto foi cortado (arquivo muito longo)" : "",
+      "",
+      "---",
+      "",
+      e.text || "(sem texto extraído)",
+    ];
+    return lines.filter((l) => l !== undefined).join("\n");
+  }
+
+  formatList(items: ExtractedText[]): string {
+    return items.map((e) => this.format(e)).join("\n\n---\n\n");
+  }
+}
+
+export class ExtractedTextJsonFormatter implements Formatter<ExtractedText> {
+  format(e: ExtractedText): string {
+    return JSON.stringify(e, null, 2);
+  }
+
+  formatList(items: ExtractedText[]): string {
+    return JSON.stringify(items, null, 2);
+  }
+}
+
+export class ResolvedTaskFilesMarkdownFormatter implements Formatter<ResolvedTaskFiles> {
+  format(r: ResolvedTaskFiles): string {
+    const header = [
+      `## Arquivos da ${r.sourceKind} ID ${r.sourceId} (Curso ${r.courseId})`,
+      `- **Total de arquivos**: ${r.totalFiles}`,
+      "",
+    ].join("\n");
+
+    if (!r.files.length) {
+      return header + "Nenhum arquivo encontrado na descrição.";
+    }
+
+    const sections = r.files.map((f, i) => {
+      const title = `### Arquivo ${i + 1}: ${f.filename ?? `ID ${f.fileId}`}`;
+      const meta = `- **Tipo**: ${f.contentType} | **ID**: ${f.fileId}`;
+
+      if ("error" in f.extraction) {
+        return [title, meta, `- **Erro**: ${f.extraction.error}`].join("\n");
+      }
+
+      const ext = f.extraction;
+      const methodLabel = `- **Método de extração**: ${ext.method}`;
+      const truncNote = ext.truncated ? "- **⚠️ Truncado**: texto cortado\n" : "";
+      return [title, meta, methodLabel, truncNote, "", ext.text || "(vazio)"].join("\n");
+    });
+
+    return header + sections.join("\n\n---\n\n");
+  }
+
+  formatList(items: ResolvedTaskFiles[]): string {
+    return items.map((r) => this.format(r)).join("\n\n===\n\n");
+  }
+}
+
+export class ResolvedTaskFilesJsonFormatter implements Formatter<ResolvedTaskFiles> {
+  format(r: ResolvedTaskFiles): string {
+    return JSON.stringify(r, null, 2);
+  }
+
+  formatList(items: ResolvedTaskFiles[]): string {
     return JSON.stringify(items, null, 2);
   }
 }
