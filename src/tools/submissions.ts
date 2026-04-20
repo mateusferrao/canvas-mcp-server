@@ -14,7 +14,7 @@ import {
 } from "../schemas/common.js";
 import { executeListTool, executeSingleTool } from "./base.js";
 import { formatError } from "../services/errors.js";
-import type { ICanvasClient } from "../services/canvasClient.js";
+import type { ClientResolver } from "../transport/types.js";
 
 const ListSubmissionsSchema = z
   .object({
@@ -56,11 +56,10 @@ const SubmitAssignmentSchema = z
   })
   .strict();
 
-export function register(server: McpServer, client: ICanvasClient): void {
-  const repo = new SubmissionsRepository(client);
-  const mdFmt = new SubmissionMarkdownFormatter();
-  const jsonFmt = new SubmissionJsonFormatter();
+const mdFmt = new SubmissionMarkdownFormatter();
+const jsonFmt = new SubmissionJsonFormatter();
 
+export function register(server: McpServer, resolveClient: ClientResolver): void {
   server.registerTool(
     "canvas_list_submissions",
     {
@@ -83,7 +82,9 @@ Retorna: lista de entregas com estado, nota e data de submissão.`,
         openWorldHint: true,
       },
     },
-    async (params) => {
+    async (params, extra) => {
+      const { client } = resolveClient(extra.sessionId);
+      const repo = new SubmissionsRepository(client);
       const fmt = selectFormatter(params.response_format, mdFmt, jsonFmt);
       return executeListTool(
         () => repo.list({
@@ -118,7 +119,9 @@ Retorna: detalhes da entrega incluindo nota, estado e conteúdo.`,
         openWorldHint: true,
       },
     },
-    async (params) => {
+    async (params, extra) => {
+      const { client } = resolveClient(extra.sessionId);
+      const repo = new SubmissionsRepository(client);
       const fmt = selectFormatter(params.response_format, mdFmt, jsonFmt);
       return executeSingleTool(
         () => repo.get(params.course_id, params.assignment_id),
@@ -156,7 +159,9 @@ ATENÇÃO: Esta operação envia uma entrega real no Canvas. Verifique os dados 
         openWorldHint: true,
       },
     },
-    async (params) => {
+    async (params, extra) => {
+      const { client } = resolveClient(extra.sessionId);
+      const repo = new SubmissionsRepository(client);
       const result = await repo.submit({
         courseId: params.course_id,
         assignmentId: params.assignment_id,

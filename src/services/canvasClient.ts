@@ -130,3 +130,14 @@ export function createClientFromEnv(): ICanvasClient {
   const domain = process.env.CANVAS_DOMAIN ?? DEFAULT_CANVAS_DOMAIN;
   return createCanvasClient({ token, domain });
 }
+
+/**
+ * Creates a Canvas client from an explicit token + domain.
+ * Used by the HTTP transport to build per-session clients.
+ */
+export function createClientFromToken(
+  token: string,
+  domain?: string
+): ICanvasClient {
+  return createCanvasClient({ token, domain: domain ?? DEFAULT_CANVAS_DOMAIN });
+}

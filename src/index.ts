@@ -1,26 +1,51 @@
 #!/usr/bin/env node
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { createClientFromEnv } from "./services/canvasClient.js";
-import { registerAllTools } from "./tools/index.js";
+import { StdioTransport } from "./transport/stdio.js";
+import { startHttpServer } from "./transport/http.js";
 
 async function main(): Promise<void> {
-  const client = createClientFromEnv();
+  const transport = process.env["MCP_TRANSPORT"]?.toLowerCase() ?? "http";
 
-  const server = new McpServer({
-    name: "canvas-mcp-server",
-    version: "1.0.0",
+  if (transport === "stdio") {
+    // ── Single-tenant: reads CANVAS_API_TOKEN from env ──────────────────────
+    const stdio = new StdioTransport();
+    await stdio.start();
+    return;
+  }
+
+  // ── HTTP: multi-tenant ────────────────────────────────────────────────────
+  const authToken = process.env["MCP_AUTH_TOKEN"];
+  if (!authToken) {
+    console.error(
+      "[canvas-mcp-server] ERRO: MCP_AUTH_TOKEN não configurado. " +
+        "Este token protege o endpoint HTTP do servidor MCP.\n" +
+        "Gere um token seguro: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\"\n" +
+        "E configure: MCP_AUTH_TOKEN=<token_gerado>"
+    );
+    process.exit(1);
+  }
+
+  const allowedOriginsRaw = process.env["MCP_ALLOWED_ORIGINS"];
+  const allowedOrigins = allowedOriginsRaw
+    ? allowedOriginsRaw.split(",").map((o) => o.trim()).filter(Boolean)
+    : undefined;
+
+  const { stop } = await startHttpServer({
+    authToken,
+    allowedOrigins,
   });
 
-  registerAllTools(server, client);
+  // Graceful shutdown
+  process.on("SIGINT", async () => {
+    console.error("[canvas-mcp-server] Desligando servidor HTTP...");
+    await stop();
+    process.exit(0);
+  });
 
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-
-  console.error(
-    "[canvas-mcp-server] Servidor MCP iniciado via stdio. " +
-      `Domínio: ${process.env.CANVAS_DOMAIN ?? "pucminas.instructure.com"}`
-  );
+  process.on("SIGTERM", async () => {
+    console.error("[canvas-mcp-server] Desligando servidor HTTP (SIGTERM)...");
+    await stop();
+    process.exit(0);
+  });
 }
 
 main().catch((error: unknown) => {

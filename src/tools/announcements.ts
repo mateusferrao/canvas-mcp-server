@@ -8,7 +8,7 @@ import {
 } from "../services/formatters.js";
 import { ResponseFormatSchema } from "../schemas/common.js";
 import { executeListTool } from "./base.js";
-import type { ICanvasClient } from "../services/canvasClient.js";
+import type { ClientResolver } from "../transport/types.js";
 
 const ListAnnouncementsSchema = z
   .object({
@@ -26,9 +26,10 @@ const ListAnnouncementsSchema = z
   })
   .strict();
 
-export function register(server: McpServer, client: ICanvasClient): void {
-  const repo = new AnnouncementsRepository(client);
+const mdFmt = new AnnouncementMarkdownFormatter();
+const jsonFmt = new AnnouncementJsonFormatter();
 
+export function register(server: McpServer, resolveClient: ClientResolver): void {
   server.registerTool(
     "canvas_list_announcements",
     {
@@ -56,12 +57,10 @@ Retorna: lista de anúncios com título, autor, data e link.`,
         openWorldHint: true,
       },
     },
-    async (params) => {
-      const fmt = selectFormatter(
-        params.response_format,
-        new AnnouncementMarkdownFormatter(),
-        new AnnouncementJsonFormatter()
-      );
+    async (params, extra) => {
+      const { client } = resolveClient(extra.sessionId);
+      const repo = new AnnouncementsRepository(client);
+      const fmt = selectFormatter(params.response_format, mdFmt, jsonFmt);
       return executeListTool(
         () => repo.list({
           contextCodes: params.context_codes,

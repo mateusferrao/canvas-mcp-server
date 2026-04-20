@@ -17,7 +17,7 @@ import {
 } from "../schemas/common.js";
 import { executeListTool, executeSingleTool } from "./base.js";
 import { formatError } from "../services/errors.js";
-import type { ICanvasClient } from "../services/canvasClient.js";
+import type { ClientResolver } from "../transport/types.js";
 
 const ListDiscussionsSchema = z
   .object({
@@ -50,13 +50,12 @@ const PostDiscussionEntrySchema = z
   })
   .strict();
 
-export function register(server: McpServer, client: ICanvasClient): void {
-  const repo = new DiscussionsRepository(client);
-  const mdFmt = new DiscussionTopicMarkdownFormatter();
-  const jsonFmt = new DiscussionTopicJsonFormatter();
-  const mdEntryFmt = new DiscussionEntryMarkdownFormatter();
-  const jsonEntryFmt = new DiscussionEntryJsonFormatter();
+const mdFmt = new DiscussionTopicMarkdownFormatter();
+const jsonFmt = new DiscussionTopicJsonFormatter();
+const mdEntryFmt = new DiscussionEntryMarkdownFormatter();
+const jsonEntryFmt = new DiscussionEntryJsonFormatter();
 
+export function register(server: McpServer, resolveClient: ClientResolver): void {
   server.registerTool(
     "canvas_list_discussions",
     {
@@ -79,7 +78,9 @@ Retorna: tópicos com autor, estado e datas.`,
         openWorldHint: true,
       },
     },
-    async (params) => {
+    async (params, extra) => {
+      const { client } = resolveClient(extra.sessionId);
+      const repo = new DiscussionsRepository(client);
       const fmt = selectFormatter(params.response_format, mdFmt, jsonFmt);
       return executeListTool(
         () =>
@@ -114,7 +115,9 @@ Retorna: tópico com mensagem convertida para Markdown (formato markdown) ou HTM
         openWorldHint: true,
       },
     },
-    async (params) => {
+    async (params, extra) => {
+      const { client } = resolveClient(extra.sessionId);
+      const repo = new DiscussionsRepository(client);
       const fmt = selectFormatter(params.response_format, mdFmt, jsonFmt);
       return executeSingleTool(
         () => repo.get(params.course_id, params.topic_id),
@@ -146,7 +149,9 @@ ATENÇÃO: Esta operação posta uma mensagem real no fórum Canvas. Verifique a
         openWorldHint: true,
       },
     },
-    async (params) => {
+    async (params, extra) => {
+      const { client } = resolveClient(extra.sessionId);
+      const repo = new DiscussionsRepository(client);
       const result = await repo.postEntry(params.course_id, params.topic_id, {
         message: params.message,
         parentEntryId: params.parent_entry_id,

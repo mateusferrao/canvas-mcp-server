@@ -8,7 +8,7 @@ import {
 } from "../services/formatters.js";
 import { ResponseFormatSchema, CourseIdSchema } from "../schemas/common.js";
 import { executeSingleTool } from "./base.js";
-import type { ICanvasClient } from "../services/canvasClient.js";
+import type { ClientResolver } from "../transport/types.js";
 
 const GetGradesSchema = z
   .object({
@@ -17,11 +17,10 @@ const GetGradesSchema = z
   })
   .strict();
 
-export function register(server: McpServer, client: ICanvasClient): void {
-  const repo = new GradesRepository(client);
-  const mdFmt = new GradesMarkdownFormatter();
-  const jsonFmt = new GradesJsonFormatter();
+const mdFmt = new GradesMarkdownFormatter();
+const jsonFmt = new GradesJsonFormatter();
 
+export function register(server: McpServer, resolveClient: ClientResolver): void {
   server.registerTool(
     "canvas_get_course_grades",
     {
@@ -41,7 +40,9 @@ Retorna: nota atual e nota final (letra e percentual) da matrícula do estudante
         openWorldHint: true,
       },
     },
-    async (params) => {
+    async (params, extra) => {
+      const { client } = resolveClient(extra.sessionId);
+      const repo = new GradesRepository(client);
       const fmt = selectFormatter(params.response_format, mdFmt, jsonFmt);
       return executeSingleTool(
         () => repo.getCourseGrades(params.course_id),

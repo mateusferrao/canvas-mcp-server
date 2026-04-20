@@ -8,7 +8,7 @@ import {
 } from "../services/formatters.js";
 import { ResponseFormatSchema } from "../schemas/common.js";
 import { executeSingleTool } from "./base.js";
-import type { ICanvasClient } from "../services/canvasClient.js";
+import type { ClientResolver } from "../transport/types.js";
 
 const GetProfileSchema = z
   .object({
@@ -16,9 +16,10 @@ const GetProfileSchema = z
   })
   .strict();
 
-export function register(server: McpServer, client: ICanvasClient): void {
-  const repo = new ProfileRepository(client);
+const mdFmt = new UserMarkdownFormatter();
+const jsonFmt = new UserJsonFormatter();
 
+export function register(server: McpServer, resolveClient: ClientResolver): void {
   server.registerTool(
     "canvas_get_profile",
     {
@@ -39,12 +40,10 @@ Retorna: dados do perfil do aluno logado.`,
         openWorldHint: true,
       },
     },
-    async (params) => {
-      const fmt = selectFormatter(
-        params.response_format,
-        new UserMarkdownFormatter(),
-        new UserJsonFormatter()
-      );
+    async (params, extra) => {
+      const { client } = resolveClient(extra.sessionId);
+      const repo = new ProfileRepository(client);
+      const fmt = selectFormatter(params.response_format, mdFmt, jsonFmt);
       return executeSingleTool(() => repo.getSelf(), fmt);
     }
   );

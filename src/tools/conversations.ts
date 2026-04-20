@@ -13,7 +13,7 @@ import {
 } from "../schemas/common.js";
 import { executeListTool, executeSingleTool } from "./base.js";
 import { formatError } from "../services/errors.js";
-import type { ICanvasClient } from "../services/canvasClient.js";
+import type { ClientResolver } from "../transport/types.js";
 
 const ListConversationsSchema = z
   .object({
@@ -57,11 +57,10 @@ const SendMessageSchema = z
     }),
   ]);
 
-export function register(server: McpServer, client: ICanvasClient): void {
-  const repo = new ConversationsRepository(client);
-  const mdFmt = new ConversationMarkdownFormatter();
-  const jsonFmt = new ConversationJsonFormatter();
+const mdFmt = new ConversationMarkdownFormatter();
+const jsonFmt = new ConversationJsonFormatter();
 
+export function register(server: McpServer, resolveClient: ClientResolver): void {
   server.registerTool(
     "canvas_list_conversations",
     {
@@ -83,7 +82,9 @@ Retorna: conversas com assunto, participantes e última mensagem.`,
         openWorldHint: true,
       },
     },
-    async (params) => {
+    async (params, extra) => {
+      const { client } = resolveClient(extra.sessionId);
+      const repo = new ConversationsRepository(client);
       const fmt = selectFormatter(params.response_format, mdFmt, jsonFmt);
       return executeListTool(
         () =>
@@ -117,7 +118,9 @@ Retorna: conversa com histórico de mensagens.`,
         openWorldHint: true,
       },
     },
-    async (params) => {
+    async (params, extra) => {
+      const { client } = resolveClient(extra.sessionId);
+      const repo = new ConversationsRepository(client);
       const fmt = selectFormatter(params.response_format, mdFmt, jsonFmt);
       return executeSingleTool(
         () => repo.get(params.conversation_id),
@@ -153,7 +156,9 @@ ATENÇÃO: Esta operação envia uma mensagem real no Canvas Inbox.`,
         openWorldHint: true,
       },
     },
-    async (params) => {
+    async (params, extra) => {
+      const { client } = resolveClient(extra.sessionId);
+      const repo = new ConversationsRepository(client);
       if (params.mode === "new") {
         const result = await repo.create({
           recipients: params.recipients,

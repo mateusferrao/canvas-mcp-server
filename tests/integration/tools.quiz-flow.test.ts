@@ -16,9 +16,9 @@ afterAll(async () => {
 // ── Tools count ────────────────────────────────────────────────────────────
 
 describe("MCP server — tools listing Phase 3 quiz flow", () => {
-  it("expõe 38 tools registradas (30 Phase 1+2 + 8 Phase 3 quiz)", async () => {
+  it("expõe 43 tools registradas (30 Phase 1+2 + 8 Phase 3 quiz + 5 Phase 4)", async () => {
     const { tools } = await client.listTools();
-    expect(tools).toHaveLength(38);
+    expect(tools).toHaveLength(43);
   });
 
   it("inclui todas as tools de quiz flow", async () => {

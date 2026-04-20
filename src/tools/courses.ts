@@ -9,11 +9,10 @@ import {
 import {
   PaginationSchema,
   ResponseFormatSchema,
-  ResponseFormat,
   CourseIdSchema,
 } from "../schemas/common.js";
 import { executeListTool, executeSingleTool } from "./base.js";
-import type { ICanvasClient } from "../services/canvasClient.js";
+import type { ClientResolver } from "../transport/types.js";
 
 const ListCoursesSchema = z
   .object({
@@ -33,11 +32,11 @@ const GetCourseSchema = z
   })
   .strict();
 
-export function register(server: McpServer, client: ICanvasClient): void {
-  const repo = new CoursesRepository(client);
-  const mdFmt = new CourseMarkdownFormatter();
-  const jsonFmt = new CourseJsonFormatter();
+// Formatters are stateless — safe to share across sessions
+const mdFmt = new CourseMarkdownFormatter();
+const jsonFmt = new CourseJsonFormatter();
 
+export function register(server: McpServer, resolveClient: ClientResolver): void {
   server.registerTool(
     "canvas_list_courses",
     {
@@ -61,7 +60,9 @@ Retorna: lista de cursos com ID, nome, código e nota.`,
         openWorldHint: true,
       },
     },
-    async (params) => {
+    async (params, extra) => {
+      const { client } = resolveClient(extra.sessionId);
+      const repo = new CoursesRepository(client);
       const fmt = selectFormatter(params.response_format, mdFmt, jsonFmt);
       return executeListTool(
         () => repo.list({ enrollment_state: params.enrollment_state, per_page: params.per_page, page: params.page }),
@@ -90,7 +91,9 @@ Retorna: detalhes completos do curso incluindo matrícula e notas.`,
         openWorldHint: true,
       },
     },
-    async (params) => {
+    async (params, extra) => {
+      const { client } = resolveClient(extra.sessionId);
+      const repo = new CoursesRepository(client);
       const fmt = selectFormatter(params.response_format, mdFmt, jsonFmt);
       return executeSingleTool(() => repo.get(params.course_id), fmt);
     }

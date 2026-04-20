@@ -13,7 +13,7 @@ import {
   PageIdOrUrlSchema,
 } from "../schemas/common.js";
 import { executeListTool, executeSingleTool } from "./base.js";
-import type { ICanvasClient } from "../services/canvasClient.js";
+import type { ClientResolver } from "../transport/types.js";
 
 const ListPagesSchema = z
   .object({
@@ -32,11 +32,10 @@ const GetPageSchema = z
   })
   .strict();
 
-export function register(server: McpServer, client: ICanvasClient): void {
-  const repo = new PagesRepository(client);
-  const mdFmt = new PageMarkdownFormatter();
-  const jsonFmt = new PageJsonFormatter();
+const mdFmt = new PageMarkdownFormatter();
+const jsonFmt = new PageJsonFormatter();
 
+export function register(server: McpServer, resolveClient: ClientResolver): void {
   server.registerTool(
     "canvas_list_pages",
     {
@@ -59,7 +58,9 @@ Retorna: lista de páginas com título, URL e data de atualização.`,
         openWorldHint: true,
       },
     },
-    async (params) => {
+    async (params, extra) => {
+      const { client } = resolveClient(extra.sessionId);
+      const repo = new PagesRepository(client);
       const fmt = selectFormatter(params.response_format, mdFmt, jsonFmt);
       return executeListTool(
         () =>
@@ -94,7 +95,9 @@ Retorna: conteúdo da página pronto para leitura pelo agente.`,
         openWorldHint: true,
       },
     },
-    async (params) => {
+    async (params, extra) => {
+      const { client } = resolveClient(extra.sessionId);
+      const repo = new PagesRepository(client);
       const fmt = selectFormatter(params.response_format, mdFmt, jsonFmt);
       return executeSingleTool(
         () => repo.get(params.course_id, params.page_url_or_id),

@@ -13,7 +13,7 @@ import {
 } from "../schemas/common.js";
 import { executeListTool } from "./base.js";
 import { formatError } from "../services/errors.js";
-import type { ICanvasClient } from "../services/canvasClient.js";
+import type { ClientResolver } from "../transport/types.js";
 
 const ListPlannerNotesSchema = z
   .object({
@@ -69,11 +69,10 @@ const ManagePlannerNoteSchema = z.discriminatedUnion("action", [
   }),
 ]);
 
-export function register(server: McpServer, client: ICanvasClient): void {
-  const repo = new PlannerRepository(client);
-  const mdFmt = new PlannerNoteMarkdownFormatter();
-  const jsonFmt = new PlannerNoteJsonFormatter();
+const mdFmt = new PlannerNoteMarkdownFormatter();
+const jsonFmt = new PlannerNoteJsonFormatter();
 
+export function register(server: McpServer, resolveClient: ClientResolver): void {
   server.registerTool(
     "canvas_list_planner_notes",
     {
@@ -96,7 +95,9 @@ Retorna: notas com título, data e curso associado.`,
         openWorldHint: true,
       },
     },
-    async (params) => {
+    async (params, extra) => {
+      const { client } = resolveClient(extra.sessionId);
+      const repo = new PlannerRepository(client);
       const fmt = selectFormatter(params.response_format, mdFmt, jsonFmt);
       return executeListTool(
         () =>
@@ -132,7 +133,10 @@ Retorna: nota resultante (create/update) ou confirmação (delete).`,
         openWorldHint: true,
       },
     },
-    async (params) => {
+    async (params, extra) => {
+      const { client } = resolveClient(extra.sessionId);
+      const repo = new PlannerRepository(client);
+
       if (params.action === "create") {
         const result = await repo.create({
           title: params.title,
