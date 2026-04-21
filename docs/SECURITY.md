@@ -1,69 +1,116 @@
 # Security Model
 
-## Authentication layers
+## Threat model summary
 
-### Layer 1 — MCP endpoint bearer token (`MCP_AUTH_TOKEN`)
+This server is an authenticated proxy from MCP clients to Canvas APIs.
+Primary risks:
 
-All requests to `/mcp` require `Authorization: Bearer <MCP_AUTH_TOKEN>`. This token identifies the **AI agent service** as an authorized caller — it is not per-user.
+- unauthorized access to `/mcp`
+- leakage or misuse of Canvas user tokens
+- SSRF through remote file URLs
+- over-privileged runtime/container execution
 
-- Compared with `crypto.timingSafeEqual` (no timing side-channel)
-- Never logged (middleware filters it before any log statement)
-- Generate with: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
+## Authentication model
 
-### Layer 2 — Canvas user token (`X-Canvas-Token`)
+### Layer 1: MCP endpoint token
 
-Sent only on the `initialize` request. Identifies a specific Canvas user.
+HTTP mode requires:
 
-- Validated immediately against `GET /api/v1/users/self` — invalid tokens are rejected at session creation, not at first tool call
-- Bound to the session in memory — not re-transmitted after initialize
-- Never logged
-- GC'd when the session expires (`SESSION_IDLE_MS`, default 30 min)
+- `Authorization: Bearer <MCP_AUTH_TOKEN>`
 
-## SSRF protection
+Requests without valid bearer token are rejected before MCP handling.
 
-### Canvas API requests
+### Layer 2: per-session Canvas token
 
-`CANVAS_DOMAIN` validated against `/^[a-z0-9-]+\.instructure\.com$/i` before any HTTP request. Private IPs and localhost blocked.
+At MCP `initialize`, clients provide:
 
-### File download (`canvas_download_file`, `canvas_extract_document_text`, `canvas_resolve_task_files`)
+- `X-Canvas-Token`
+- optional domain override header (validated)
 
-Canvas signed file URLs resolve to CDN hosts outside `*.instructure.com`. Allowlist:
+The token is validated with Canvas and then bound to that MCP session context in memory.
 
-| Pattern | Covers |
-|---|---|
-| `*.instructure.com` | Main Canvas domain |
-| `inst-fs-*.inscloudgate.net` | Canvas file storage |
-| `instructure-uploads.s3*.amazonaws.com` | S3-backed uploads |
-| `*.s3.amazonaws.com` | Generic S3 |
+## Session controls
 
-Additional controls:
-- HTTPS only
-- Private IP ranges blocked (10.x, 172.16-31.x, 192.168.x, 127.x, ::1)
-- Max 3 redirects; each redirect re-checks hostname
-- Content-length pre-check + streaming abort above `DOCUMENT_DOWNLOAD_MAX_BYTES` (default 25 MB)
-- Signed URLs are never echoed in error messages
+- session IDs are generated server-side
+- session context stored in memory only
+- idle sessions are evicted (`SESSION_IDLE_MS`, default 30 minutes)
+- `DELETE /mcp` closes and removes a session
 
-## Session security
+No token/session material is persisted to disk.
 
-- Session IDs are UUIDv4 (`randomUUID()`)
-- Sessions expire after `SESSION_IDLE_MS` (default 30 min) of inactivity
-- GC runs every minute (or `SESSION_IDLE_MS` if shorter)
-- `DELETE /mcp` immediately destroys a session
-- No session data written to disk — memory only
+## Domain and SSRF controls
 
-## Network defaults
+### Canvas API domain validation
 
-- Default bind: `127.0.0.1` (loopback) — not reachable from other machines
-- For remote access: put a reverse proxy (Caddy, nginx) in front with TLS. Do **not** bind `0.0.0.0` directly without TLS.
-- `MCP_ALLOWED_ORIGINS` — set to your agent's origin to enable CORS validation (DNS rebinding guard)
+Canvas API requests use a validated Canvas domain pattern (Instructure domain constraints), blocking arbitrary upstream hosts.
 
-## What is NOT protected
+### File download protection
 
-- Rate limiting per user — not implemented. One Canvas user could exhaust your institution's Canvas API quota. Implement at the reverse proxy if needed.
-- The Canvas token is as powerful as the user's Canvas account — it has no scope restriction. Revoke it from Canvas Settings if compromised.
+Document workflows (`canvas_document`) enforce URL safety checks before download/extract operations:
 
-## GCP Vision credentials
+- protocol and host validation
+- redirect checks on follow-up URLs
+- size limits (`DOCUMENT_DOWNLOAD_MAX_BYTES`)
 
-- Never logged or exposed in tool responses
-- Path to service account JSON is read from env, not embedded in code
-- Use `OCR_ENABLED=false` in environments without GCP credentials — server starts cleanly
+These controls reduce SSRF and resource abuse risk during file operations.
+
+## Tool-level risk posture
+
+The server intentionally keeps write tools explicit:
+
+- `canvas_submit_assignment`
+- `canvas_mark_module_item_done`
+- `canvas_post_discussion_entry`
+- `canvas_send_message`
+- `canvas_manage_planner_note`
+- `canvas_upload_file`
+- `canvas_quiz_attempt` (`answer`/`complete` are mutating)
+
+Read tools remain consolidated under `canvas_list`, `canvas_get`, and `canvas_document`.
+
+## Runtime hardening
+
+### HTTP surface
+
+- `/mcp` is authenticated
+- `/healthz` is intentionally unauthenticated liveness endpoint (returns static `{ "status": "ok" }`)
+
+### Graceful shutdown
+
+The process handles `SIGTERM` and `SIGINT` and stops transport cleanly before exiting.
+
+## Container hardening
+
+The production Docker image uses:
+
+- multi-stage build
+- non-root runtime user
+- minimal runtime contents (`dist`, production deps)
+- healthcheck command against `/healthz`
+
+See [docs/DOCKER.md](DOCKER.md) for operational details.
+
+## Secret handling
+
+Recommended:
+
+- keep `.env` out of version control
+- inject `MCP_AUTH_TOKEN` through secure environment mechanisms
+- mount OCR credentials as read-only file when required
+- rotate Canvas personal tokens if exposure is suspected
+
+Avoid:
+
+- embedding secrets in source code
+- logging tokens or raw authorization headers
+- exposing service on public interfaces without TLS and network controls
+
+## Deployment recommendations
+
+For non-local deployments:
+
+- place behind TLS-terminating reverse proxy
+- restrict source networks for `/mcp`
+- use secret manager (or encrypted CI/CD vars)
+- monitor container restarts and health failures
+- enforce log retention policy without sensitive payload dumps

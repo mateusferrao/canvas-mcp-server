@@ -165,11 +165,17 @@ export class QuizzesRepository {
 
   async listSubmissions(
     courseId: number,
-    quizId: number
+    quizId: number,
+    params: { per_page?: number; page?: number } = {}
   ): Promise<Result<CanvasQuizSubmission[]>> {
+    const { per_page = 25, page = 1 } = params;
     const result = await this.client.get<CanvasQuizSubmissionEnvelope>(
       `/courses/${courseId}/quizzes/${quizId}/submissions`,
-      { "include[]": "submission" }
+      {
+        "include[]": "submission",
+        per_page,
+        page,
+      }
     );
     if (!result.ok) return result;
     return ok(result.value.quiz_submissions);

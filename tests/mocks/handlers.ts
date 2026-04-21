@@ -244,11 +244,59 @@ export const handlers = [
 
   // ── Files ──────────────────────────────────────────────────────────────────
 
+  http.get(`${BASE}/courses/101/files`, () =>
+    HttpResponse.json([
+      fileConfirm,
+      {
+        id: 5002,
+        display_name: "notas.txt",
+        filename: "notas.txt",
+        url: "https://pucminas.instructure.com/files/5002/download",
+        "content-type": "text/plain",
+        size: 36,
+        folder_id: 100,
+        created_at: "2024-06-02T12:00:00Z",
+      },
+    ])
+  ),
+
   http.post(`${BASE}/users/self/files`, () =>
     HttpResponse.json(fileUploadStep1, { status: 200 })
   ),
+
+  http.post("https://instructure-uploads.s3.amazonaws.com/", () =>
+    new HttpResponse(null, { status: 303, headers: { location: "https://pucminas.instructure.com/api/v1/files/5001/confirm" } })
+  ),
+
+  http.get(`${BASE}/files/5001/confirm`, () =>
+    HttpResponse.json(fileConfirm)
+  ),
+
   http.get(`${BASE}/files/5001`, () =>
     HttpResponse.json(fileConfirm)
+  ),
+
+  http.get(`${BASE}/files/5002`, () =>
+    HttpResponse.json({
+      id: 5002,
+      display_name: "notas.txt",
+      filename: "notas.txt",
+      url: "https://pucminas.instructure.com/files/5002/download",
+      "content-type": "text/plain",
+      size: 36,
+      folder_id: 100,
+      created_at: "2024-06-02T12:00:00Z",
+    })
+  ),
+
+  http.get("https://pucminas.instructure.com/files/5002/download", () =>
+    new HttpResponse("Conteudo de teste do arquivo.", {
+      status: 200,
+      headers: {
+        "content-type": "text/plain; charset=utf-8",
+        "content-disposition": "attachment; filename=notas.txt",
+      },
+    })
   ),
 
   // ── Quiz-taking flow (Phase 3) ─────────────────────────────────────────────
