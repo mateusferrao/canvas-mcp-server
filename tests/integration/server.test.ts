@@ -14,9 +14,23 @@ afterAll(async () => {
 });
 
 describe("MCP server — tools listing", () => {
-  it("expõe 43 tools registradas (13 Phase 1 + 17 Phase 2 + 8 Phase 3 + 5 Phase 4)", async () => {
+  it("expõe exatamente 10 tools", async () => {
     const { tools } = await client.listTools();
-    expect(tools).toHaveLength(43);
+    expect(tools).toHaveLength(10);
+
+    const names = tools.map((tool) => tool.name).sort();
+    expect(names).toEqual([
+      "canvas_document",
+      "canvas_get",
+      "canvas_list",
+      "canvas_manage_planner_note",
+      "canvas_mark_module_item_done",
+      "canvas_post_discussion_entry",
+      "canvas_quiz_attempt",
+      "canvas_send_message",
+      "canvas_submit_assignment",
+      "canvas_upload_file",
+    ]);
   });
 
   it("todas as tools têm name, description e inputSchema", async () => {
@@ -27,101 +41,34 @@ describe("MCP server — tools listing", () => {
       expect(tool.inputSchema).toBeDefined();
     }
   });
-
-  it("inclui canvas_get_profile", async () => {
-    const { tools } = await client.listTools();
-    const names = tools.map((t) => t.name);
-    expect(names).toContain("canvas_get_profile");
-  });
-
-  it("inclui canvas_submit_assignment", async () => {
-    const { tools } = await client.listTools();
-    const names = tools.map((t) => t.name);
-    expect(names).toContain("canvas_submit_assignment");
-  });
 });
 
-describe("canvas_get_profile", () => {
-  it("retorna perfil do usuário em markdown", async () => {
+describe("consolidated read tools", () => {
+  it("canvas_get profile retorna perfil do usuário", async () => {
     const result = await client.callTool({
-      name: "canvas_get_profile",
-      arguments: { response_format: "markdown" },
+      name: "canvas_get",
+      arguments: { kind: "profile", response_format: "markdown" },
     });
+
     const text = (result.content as Array<{ type: string; text: string }>)[0].text;
     expect(text).toContain("João da Silva");
     expect(text).toContain("joao.silva@sga.pucminas.br");
   });
 
-  it("retorna perfil em JSON quando solicitado", async () => {
+  it("canvas_list courses retorna cursos", async () => {
     const result = await client.callTool({
-      name: "canvas_get_profile",
-      arguments: { response_format: "json" },
+      name: "canvas_list",
+      arguments: { kind: "courses" },
     });
-    const text = (result.content as Array<{ type: string; text: string }>)[0].text;
-    const parsed = JSON.parse(text);
-    expect(parsed.id).toBe(999);
-  });
-});
 
-describe("canvas_list_courses", () => {
-  it("retorna cursos ativos em markdown", async () => {
-    const result = await client.callTool({
-      name: "canvas_list_courses",
-      arguments: {},
-    });
     const text = (result.content as Array<{ type: string; text: string }>)[0].text;
     expect(text).toContain("Engenharia de Software");
     expect(text).toContain("Cálculo II");
   });
-
-  it("retorna cursos em JSON quando solicitado", async () => {
-    const result = await client.callTool({
-      name: "canvas_list_courses",
-      arguments: { response_format: "json" },
-    });
-    const text = (result.content as Array<{ type: string; text: string }>)[0].text;
-    const parsed = JSON.parse(text);
-    expect(parsed).toHaveProperty("items");
-    expect(Array.isArray(parsed.items)).toBe(true);
-  });
 });
 
-describe("canvas_list_assignments", () => {
-  it("retorna tarefas do curso 101", async () => {
-    const result = await client.callTool({
-      name: "canvas_list_assignments",
-      arguments: { course_id: 101 },
-    });
-    const text = (result.content as Array<{ type: string; text: string }>)[0].text;
-    expect(text).toContain("Trabalho 1");
-  });
-});
-
-describe("canvas_list_todo", () => {
-  it("retorna pendências do aluno", async () => {
-    const result = await client.callTool({
-      name: "canvas_list_todo",
-      arguments: {},
-    });
-    const text = (result.content as Array<{ type: string; text: string }>)[0].text;
-    expect(text).toContain("Exercício de Cálculo 5");
-  });
-});
-
-describe("canvas_get_submission", () => {
-  it("retorna entrega existente", async () => {
-    const result = await client.callTool({
-      name: "canvas_get_submission",
-      arguments: { course_id: 101, assignment_id: 201 },
-    });
-    const text = (result.content as Array<{ type: string; text: string }>)[0].text;
-    expect(text).toContain("graded");
-    expect(text).toContain("9,50");
-  });
-});
-
-describe("canvas_submit_assignment", () => {
-  it("realiza entrega de texto com sucesso", async () => {
+describe("standalone write tools", () => {
+  it("canvas_submit_assignment realiza entrega de texto", async () => {
     const result = await client.callTool({
       name: "canvas_submit_assignment",
       arguments: {
@@ -131,6 +78,7 @@ describe("canvas_submit_assignment", () => {
         body: "<p>Minha resposta de teste</p>",
       },
     });
+
     const text = (result.content as Array<{ type: string; text: string }>)[0].text;
     expect(text).toContain("sucesso");
   });

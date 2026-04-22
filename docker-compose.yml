@@ -1,0 +1,17 @@
+services:
+  canvas-mcp:
+    build: .
+    image: canvas-mcp-server:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+    env_file:
+      - .env
+    environment:
+      MCP_TRANSPORT: http
+      MCP_HTTP_HOST: 0.0.0.0
+      MCP_AUTH_TOKEN: ${MCP_AUTH_TOKEN}
+      OCR_ENABLED: ${OCR_ENABLED:-false}
+      GOOGLE_APPLICATION_CREDENTIALS: /secrets/gcp-vision.json
+    volumes:
+      - ${GOOGLE_APPLICATION_CREDENTIALS:-./.env}:/secrets/gcp-vision.json:ro

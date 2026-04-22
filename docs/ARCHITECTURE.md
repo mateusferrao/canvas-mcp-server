@@ -1,378 +1,156 @@
 # Architecture
 
-## Directory Structure
-
-```
-canvas-mcp-server/
-├── src/
-│   ├── index.ts                  # Entry point: dispatches to HTTP or stdio based on MCP_TRANSPORT
-│   ├── server.ts                 # createServer({resolveClient}) — transport-agnostic MCP server factory
-│   ├── constants.ts              # CHARACTER_LIMIT, DEFAULT_PAGE_SIZE, domain validation regex
-│   ├── types.ts                  # TypeScript interfaces: Canvas API objects, FileLink, ExtractedText, ResolvedTaskFiles
-│   ├── transport/
-│   │   ├── types.ts              # ClientContext, ClientResolver, TransportBootstrap interface
-│   │   ├── auth.ts               # bearerAuth() Express middleware (timingSafeEqual), token/domain extractors
-│   │   ├── http.ts               # startHttpServer(): multi-tenant Streamable HTTP, session store, GC
-│   │   └── stdio.ts              # StdioTransport wrapping existing stdio behavior
-│   ├── services/
-│   │   ├── canvasClient.ts       # Adapter + Factory: axios wrapper, auth injection, Link header parser
-│   │   ├── canvasDownload.ts     # SSRF-hardened file download; CDN hostname allowlist; redirect re-check
-│   │   ├── ocr.ts                # OcrService interface; NullOcrService; GoogleVisionOcrService; createOcrService()
-│   │   ├── documentExtractor.ts  # DocumentExtractor interface; DefaultDocumentExtractor (MIME dispatcher)
-│   │   ├── canvasLinks.ts        # extractFileLinks(html): parses /courses/:c/files/:f links, deduplicates
-│   │   ├── errors.ts             # Result<T,E> type, ok/err constructors, mapApiError()
-│   │   ├── formatters.ts         # Strategy: Formatter<T> interface, Markdown & JSON implementations
-│   │   └── markdown.ts           # htmlToMarkdown() helper via turndown (used by Pages + Discussions)
-│   ├── repositories/             # Repository pattern — one file per Canvas API domain
-│   │   ├── courses.ts            # Phase 1
-│   │   ├── assignments.ts        # Phase 1
-│   │   ├── submissions.ts        # Phase 1 + online_upload extension
-│   │   ├── todo.ts               # Phase 1
-│   │   ├── calendar.ts           # Phase 1
-│   │   ├── announcements.ts      # Phase 1
-│   │   ├── profile.ts            # Phase 1
-│   │   ├── modules.ts            # Phase 2
-│   │   ├── pages.ts              # Phase 2
-│   │   ├── discussions.ts        # Phase 2
-│   │   ├── conversations.ts      # Phase 2
-│   │   ├── files.ts              # Phase 2 — 3-step S3 upload, uses axios directly (not ICanvasClient)
-│   │   ├── planner.ts            # Phase 2
-│   │   ├── grades.ts             # Phase 2
-│   │   ├── quizzes.ts            # Phase 2 (metadata) + Phase 3 (full taking flow)
-│   │   └── documents.ts          # Phase 4 — listCourseFiles, downloadFileBytes, extractDocumentText, resolveTaskFiles
-│   ├── schemas/
-│   │   ├── common.ts             # Zod schemas: pagination, response format, domain IDs
-│   │   └── documents.ts          # Phase 4 — Zod schemas for 5 document tools; ResolveTaskFilesSchema discriminated union
-│   └── tools/
-│       ├── index.ts              # Registry: registerAllTools(server, resolveClient: ClientResolver)
-│       ├── base.ts               # Template Method: executeListTool(), executeSingleTool()
-│       ├── courses.ts            # Phase 1
-│       ├── assignments.ts        # Phase 1
-│       ├── submissions.ts        # Phase 1 + online_upload extension
-│       ├── todo.ts               # Phase 1
-│       ├── calendar.ts           # Phase 1
-│       ├── announcements.ts      # Phase 1
-│       ├── profile.ts            # Phase 1
-│       ├── modules.ts            # Phase 2
-│       ├── pages.ts              # Phase 2
-│       ├── discussions.ts        # Phase 2
-│       ├── conversations.ts      # Phase 2
-│       ├── files.ts              # Phase 2
-│       ├── planner.ts            # Phase 2
-│       ├── grades.ts             # Phase 2
-│       ├── quizzes.ts            # Phase 2 (metadata) + Phase 3 (full taking flow)
-│       └── documents.ts          # Phase 4 — canvas_list_files, canvas_get_file, canvas_download_file, canvas_extract_document_text, canvas_resolve_task_files
-├── tests/
-│   ├── unit/
-│   │   ├── services/             # canvasClient, errors, formatters tests
-│   │   ├── repositories/         # all repository unit tests
-│   │   └── schemas/              # common schema validation tests
-│   ├── integration/
-│   │   ├── server.test.ts        # In-memory MCP client ↔ server, Phase 1 tools
-│   │   ├── tools.phase2.test.ts  # In-memory MCP client ↔ server, Phase 2 tools
-│   │   └── tools.quiz-flow.test.ts # In-memory MCP client ↔ server, Phase 3 quiz flow
-│   ├── fixtures/                 # Canonical Canvas API JSON response shapes
-│   ├── mocks/                    # MSW server + request handlers (all domains)
-│   └── helpers/                  # buildTestClient(), buildInMemoryServer()
-├── dist/                         # Compiled output (gitignored)
-├── docs/                         # Extended documentation
-├── .env.example
-├── package.json
-├── tsconfig.json
-└── vitest.config.ts
-```
+## Overview
 
----
+The server is organized around a strict separation of concerns:
 
-## Design Patterns
+- Transport layer: HTTP (default) and stdio
+- Tool layer: fixed surface of 10 MCP tools
+- Dispatcher layer: kind/action routing for consolidated tools
+- Repository layer: Canvas API domain access
+- Service layer: formatting, extraction, OCR, error mapping
 
-The patterns below were chosen because they solve specific problems in this codebase, not for their own sake.
+The refactor goal was to reduce LLM tool selection complexity while preserving existing domain behavior.
 
-### Adapter — `src/services/canvasClient.ts`
+## Tool Surface (Hard-Cut)
 
-**Problem:** Canvas has quirks — Link-header pagination, Bearer auth injection, 64-bit IDs, domain validation — that shouldn't leak into business logic.
+Exactly 10 tools are registered in [src/tools/index.ts](../src/tools/index.ts):
 
-**Solution:** `ICanvasClient` interface with `get`, `getPaginated`, `post`, `put`, `delete` methods. The concrete `createCanvasClient()` wraps axios and handles all HTTP details. Repositories depend on `ICanvasClient`, not on axios.
+- `canvas_list`
+- `canvas_get`
+- `canvas_document`
+- `canvas_quiz_attempt`
+- `canvas_submit_assignment`
+- `canvas_mark_module_item_done`
+- `canvas_post_discussion_entry`
+- `canvas_send_message`
+- `canvas_manage_planner_note`
+- `canvas_upload_file`
 
-**Trade-off:** One extra abstraction layer. Worth it because tests inject a real client against MSW (no mocking internal code), and swapping HTTP libraries later is a 1-file change.
+There are no compatibility aliases for removed legacy tools.
 
----
+## Consolidation Strategy
 
-### Repository — `src/repositories/`
+### 1) Discriminated unions at schema boundary
 
-**Problem:** Without a separation layer, tools would directly compose raw HTTP paths, making each tool aware of Canvas URL conventions.
+Primary contracts are declared in [src/schemas/consolidated.ts](../src/schemas/consolidated.ts):
 
-**Solution:** One class per domain (`CoursesRepository`, `AssignmentsRepository`, etc.), each taking `ICanvasClient` in the constructor. Tools call repos; repos call the client.
+- `CanvasListInputSchema` (discriminant: `kind`)
+- `CanvasGetInputSchema` (discriminant: `kind`)
+- `CanvasDocumentInputSchema` (discriminant: `action`)
+- `CanvasQuizAttemptInputSchema` (union for `start`/`answer`/`complete`)
+- standalone write schemas
 
-**Trade-off:** More files, but each file is small (30–60 lines) and has a single responsibility. Testing a repository is a 10-line test against MSW.
+This keeps validation explicit and rejects unsupported branches early.
 
----
+### 2) Dispatcher registry per consolidated read tool
 
-### Strategy — `src/services/formatters.ts`
+- [src/tools/dispatchers/listDispatcher.ts](../src/tools/dispatchers/listDispatcher.ts)
+- [src/tools/dispatchers/getDispatcher.ts](../src/tools/dispatchers/getDispatcher.ts)
 
-**Problem:** Every list tool can return Markdown or JSON, but the formatting logic shouldn't live inside each tool handler.
+Each dispatcher maintains a registry:
 
-**Solution:** `Formatter<T>` interface with `format(item)` and `formatList(items, total)`. Two implementations per type: `*MarkdownFormatter` and `*JsonFormatter`. Tools call `selectFormatter(format, md, json)` to pick at runtime.
+- typed schema per kind
+- fetch/execute function
+- markdown/json formatter pair
 
-**Trade-off:** More classes. Adding a third format (CSV, for example) means adding one class per type — but zero changes to tool handlers.
+Flow:
 
----
+1. Parse consolidated input
+2. Validate discriminant (`kind`)
+3. Re-parse with branch schema
+4. Resolve repository call
+5. Format response and return MCP payload
 
-### Factory — `createCanvasClient(config)` / `createClientFromEnv()`
+### 3) Consolidated tool wrappers stay thin
 
-**Problem:** Need different clients for production (reads env vars) and tests (custom config, no env vars required).
+- [src/tools/consolidated/list.ts](../src/tools/consolidated/list.ts)
+- [src/tools/consolidated/get.ts](../src/tools/consolidated/get.ts)
+- [src/tools/consolidated/document.ts](../src/tools/consolidated/document.ts)
+- [src/tools/consolidated/quizAttempt.ts](../src/tools/consolidated/quizAttempt.ts)
 
-**Solution:** `createCanvasClient(config)` builds a client from explicit config. `createClientFromEnv()` reads env vars and calls the former. Tests use `buildTestClient()` which also calls the former with test config.
+These wrappers only:
 
----
+- register MCP tool metadata
+- parse input
+- delegate to dispatchers/repositories
 
-### Template Method — `src/tools/base.ts`
+## Runtime and Transport
 
-**Problem:** All list tools share the same flow: fetch → check error → format → truncate → wrap in MCP response.
+### HTTP mode (default)
 
-**Solution:** `executeListTool(fetchFn, formatter, format)` and `executeSingleTool(fetchFn, formatter)` handle the common flow. Tool handlers provide only the fetch lambda and formatter.
+- Entry: [src/index.ts](../src/index.ts)
+- HTTP transport: [src/transport/http.ts](../src/transport/http.ts)
 
-**Trade-off:** Slightly less flexibility per tool. In practice, all list tools needed the same flow.
+Key behavior:
 
----
+- `/mcp` protected by `MCP_AUTH_TOKEN`
+- Canvas user binding done at `initialize` via `X-Canvas-Token`
+- In-memory per-session `ClientContext`
+- `/healthz` unauthenticated liveness endpoint
+- graceful shutdown on `SIGTERM` and `SIGINT`
 
-### Registry — `src/tools/index.ts`
+### stdio mode
 
-**Problem:** `src/index.ts` (entry point) shouldn't know about individual tool files. New domains shouldn't require changes in multiple places.
+- Same tool/repository stack
+- Single-user token from environment
 
-**Solution:** Each tool file exports `register(server, client)`. `registerAllTools(server, client)` in `tools/index.ts` calls each.
+## Layer responsibilities
 
-**Trade-off:** One `tools/index.ts` still needs updating per new domain — but that is the only place.
+### Repositories
 
----
+Repositories keep Canvas endpoint details isolated.
 
-### Result / Either — `src/services/errors.ts`
+Examples:
 
-**Problem:** Using thrown exceptions for expected HTTP errors (401, 404, etc.) makes error handling implicit and easy to forget.
+- [src/repositories/todo.ts](../src/repositories/todo.ts): paginated todo/upcoming/missing
+- [src/repositories/quizzes.ts](../src/repositories/quizzes.ts): quiz metadata + attempt workflow
+- [src/repositories/documents.ts](../src/repositories/documents.ts): list/download/extract/resolve task files
 
-**Solution:** `Result<T, CanvasError>` union type. `ok(value)` and `err(error)` constructors. All async operations return `Result`, never throw. Callers are forced to check `result.ok` before using the value.
+### Services
 
-**Trade-off:** More verbose call sites (`if (!result.ok) return ...`). Worth it — impossible to forget error handling.
+- [src/services/formatters.ts](../src/services/formatters.ts): markdown/json strategies
+- [src/services/errors.ts](../src/services/errors.ts): `Result<T, E>` and mapped errors
+- [src/services/documentExtractor.ts](../src/services/documentExtractor.ts): format-aware extraction
+- [src/services/ocr.ts](../src/services/ocr.ts): optional OCR backend
 
----
+### Tool base helpers
 
-### Dependency Injection (constructor injection)
+- [src/tools/base.ts](../src/tools/base.ts): normalized list/single MCP response flow
 
-**Problem:** Without DI, repositories would call `createClientFromEnv()` directly, making them untestable without env vars.
+## Extending consolidated kinds
 
-**Solution:** Repositories and tools receive `ICanvasClient` as a constructor argument. `src/index.ts` is the single composition root.
+To add a new read/list capability under consolidation:
 
-**Trade-off:** Wiring must be done explicitly in `index.ts` and in test helpers. Acceptable for this scale.
+1. Add schema branch in [src/schemas/consolidated.ts](../src/schemas/consolidated.ts)
+2. Add dispatcher registry entry (`listDispatcher` or `getDispatcher`)
+3. Reuse existing repository or add repository method
+4. Add/adjust formatter if output shape is new
+5. Add unit tests for dispatcher and integration tests for tool call
 
----
+No tool registration changes are needed unless introducing a brand-new top-level tool.
 
-### Transport Strategy / `TransportBootstrap`
+## Testing strategy
 
-**Problem:** The server originally assumed a single stdio transport and a single Canvas client, making multi-tenant HTTP hosting impossible.
+Coverage is split by intent:
 
-**Solution:** `TransportBootstrap` interface in `src/transport/types.ts` decouples server creation from transport concerns. `StdioTransport` preserves the original single-user flow; `HttpTransport` (`src/transport/http.ts`) runs a Streamable HTTP server with a per-session `Map<sessionId, {transport, context, lastSeen}>`.
+- Unit tests for dispatchers
+  - [tests/unit/tools/dispatchers/listDispatcher.test.ts](../tests/unit/tools/dispatchers/listDispatcher.test.ts)
+  - [tests/unit/tools/dispatchers/getDispatcher.test.ts](../tests/unit/tools/dispatchers/getDispatcher.test.ts)
+- Integration tests for MCP behavior
+  - [tests/integration/server.test.ts](../tests/integration/server.test.ts)
+  - [tests/integration/tools.phase2.test.ts](../tests/integration/tools.phase2.test.ts)
+  - [tests/integration/tools.quiz-flow.test.ts](../tests/integration/tools.quiz-flow.test.ts)
+  - [tests/integration/tools.consolidated.test.ts](../tests/integration/tools.consolidated.test.ts)
 
-`ClientResolver = (sessionId?) => ClientContext` replaces the single `ICanvasClient` DI. Every tool file now accepts `resolveClient: ClientResolver` and resolves the correct client per-request via `resolveClient(extra.sessionId)`. No tool handler needs to know which transport is active.
+Mocked Canvas transport is provided through MSW handlers in [tests/mocks/handlers.ts](../tests/mocks/handlers.ts).
 
-**Trade-off:** Tool signatures gained one parameter. Adding a new transport means implementing `TransportBootstrap` and wiring it in `src/index.ts` — zero changes to tools or repositories.
+## Design constraints preserved
 
----
+The consolidation keeps original engineering constraints:
 
-### Adapter — `OcrService`
-
-**Problem:** OCR is optional (requires GCP credentials), the SDK import is large, and users without GCP credentials should not see startup errors.
-
-**Solution:** `OcrService` interface with a `recognizeText(buffer, mimeType)` method. `NullOcrService` returns an empty result when `OCR_ENABLED=false`. `GoogleVisionOcrService` lazily imports `@google-cloud/vision` only at first call, preventing startup failure for users without the package or credentials. `createOcrService({enabled})` factory decides which implementation to instantiate.
-
-**Trade-off:** The lazy import makes first-call latency slightly higher. Swapping Google Vision for Azure Cognitive Services means implementing `OcrService` and changing `createOcrService()` — zero impact on `DocumentExtractor` or tools.
-
----
-
-### Adapter — `DocumentExtractor`
-
-**Problem:** Tools need text from files regardless of format (PDF, DOCX, plain text, images). Each format requires a different library, and new formats will be added over time.
-
-**Solution:** `DocumentExtractor` interface with a single `extract(buffer, mimeType)` method. `DefaultDocumentExtractor` dispatches by MIME type: `text/*` → UTF-8 decode, `application/pdf` → pdf-parse, `application/vnd.openxmlformats-officedocument.wordprocessingml.document` → mammoth, `image/*` → `OcrService`. `createDocumentExtractor({ocr})` factory wires the dependencies.
-
-**Trade-off:** Adding a new format is one new branch (or a new Strategy class) in `DefaultDocumentExtractor`. Zero changes to tools or repositories.
-
----
-
-## Data Flow
-
-### Single-user (stdio) path
-
-```
-User asks Claude a question
-        │
-        ▼
-Claude calls MCP tool (e.g. canvas_list_assignments)
-        │
-        ▼
-Tool handler (src/tools/assignments.ts)
-  └─ Validates input via Zod schema
-  └─ resolveClient(extra.sessionId) → ICanvasClient
-  └─ Calls AssignmentsRepository.list(params)
-        │
-        ▼
-AssignmentsRepository (src/repositories/assignments.ts)
-  └─ Calls ICanvasClient.getPaginated("/courses/:id/assignments", params)
-        │
-        ▼
-canvasClient (src/services/canvasClient.ts)
-  └─ Sends GET to https://{CANVAS_DOMAIN}/api/v1/courses/:id/assignments
-  └─ Injects Authorization header
-  └─ Parses Link header for pagination
-  └─ Returns Result<PaginatedResponse<CanvasAssignment>>
-        │
-        ▼
-Repository returns Result to tool handler
-        │
-        ▼
-Tool handler
-  └─ On error: formats with formatError() → returns MCP error text
-  └─ On success: selects formatter (Markdown or JSON)
-  └─ Calls executeListTool() → truncates if > 25k chars
-  └─ Returns { content, structuredContent }
-        │
-        ▼
-Claude receives formatted response and answers the user
-```
-
-### Multi-tenant (HTTP) path
-
-```
-HTTP POST /mcp  (AI agent service)
-        │
-        ▼
-bearerAuth middleware (src/transport/auth.ts)
-  └─ Validates Authorization: Bearer <MCP_AUTH_TOKEN> via timingSafeEqual
-  └─ 401 on mismatch
-        │
-        ▼
-startHttpServer session logic (src/transport/http.ts)
-  └─ initialize request: extracts X-Canvas-Token + X-Canvas-Domain
-     └─ Validates token via GET /api/v1/users/self → 401 on failure
-     └─ Creates session entry: Map<sessionId, {transport, context, lastSeen}>
-  └─ Subsequent requests: looks up session by Mcp-Session-Id header
-        │
-        ▼
-resolveClient(sessionId) → ClientContext { client, token, domain }
-        │
-        ▼
-Tool handler → Repository → Canvas API  (same as stdio path from here)
-        │
-        ▼
-GC loop: every min (or SESSION_IDLE_MS) evicts sessions idle > SESSION_IDLE_MS
-```
-
----
-
-## Trade-offs & Decisions
-
-### HTTP is now the default transport
-
-HTTP (`MCP_TRANSPORT=http`) is the default, enabling multi-tenant hosting. stdio is available via `MCP_TRANSPORT=stdio` for local single-user use (e.g. running directly under Claude Desktop).
-
-### Multi-tenant session model — Map vs stateless JWT
-
-Session state is kept in a `Map<sessionId, {transport, context, lastSeen}>` in memory rather than encoding identity in a stateless JWT. The reason: Canvas tokens are **opaque** — there is no way to extract user identity from the token without making a round-trip to `GET /api/v1/users/self`. Doing that round-trip on every request would double the API call count for every tool invocation. The session store pays the validation cost once (at `initialize`) and then resolves the client in O(1) for all subsequent requests. Sessions are GC'd after `SESSION_IDLE_MS` of inactivity (default 30 min).
-
-### SSRF for file download — why a CDN allowlist instead of `*.instructure.com`
-
-Canvas signed file URLs do not resolve to `*.instructure.com`. They point to CDN/storage backends: `inst-fs-*.inscloudgate.net` (Canvas file storage) and `instructure-uploads.s3*.amazonaws.com` / `*.s3.amazonaws.com` (S3-backed uploads). Blocking anything outside `*.instructure.com` would make `canvas_download_file` fail for the vast majority of real Canvas files. The allowlist covers exactly the set of hostnames Canvas uses in practice while still blocking arbitrary internet URLs. Each redirect re-checks the resolved hostname against the same allowlist.
-
-### OCR lazy import — why lazy-import `@google-cloud/vision`
-
-`@google-cloud/vision` is a large SDK that attempts to read GCP credentials at import time. Importing it at module load would cause the server to fail on startup for any user who has not configured GCP credentials, even if `OCR_ENABLED=false`. The `GoogleVisionOcrService` uses a dynamic `import()` only at first `recognizeText()` call, so startup is always clean.
-
-### Why TypeScript and not Python?
-
-- The MCP TypeScript SDK has better type coverage for tool registration patterns
-- Static typing catches configuration errors at build time rather than runtime
-- `zod` schema inference (`z.infer<typeof Schema>`) eliminates redundant type definitions
-
-### Why Zod for validation?
-
-Canvas API IDs are integers; tool inputs are strings/numbers from JSON. Zod provides both runtime validation and static type inference from the same definition.
-
-### Why Result<T> instead of try/catch?
-
-HTTP errors like 401 and 404 are **expected outcomes**, not exceptions. Modeling them as `Result<T, CanvasError>` makes them visible in the type signature and forces callers to handle them.
-
-### File upload — why axios directly in `FilesRepository`?
-
-Canvas file upload is a 3-step process: (1) notify Canvas → get S3 pre-signed URL, (2) POST multipart to that external S3 URL **without** Authorization header, (3) GET the confirmation URL **with** Authorization. Step 2 targets an AWS S3 endpoint — passing it through `ICanvasClient` (which always injects Bearer auth and targets `*.instructure.com`) would be architecturally wrong. `FilesRepository` uses axios directly, injected via constructor. The 3-step flow is fully encapsulated; tool handlers see a single `uploadUserFile()` call.
-
-### Character limit (25,000)
-
-MCP tool responses become part of the AI's context window. The 25k character soft cap truncates with a message advising the user to paginate or filter. Adjust `CHARACTER_LIMIT` in `src/constants.ts` if needed.
-
-### Stateless `validation_token` flow (Phase 3)
-
-Canvas issues `validation_token` **once** when a quiz attempt is created (`POST .../submissions`). It is required by the answer endpoint and the complete endpoint — but not stored server-side.
-
-The MCP server follows its "no data persistence" principle: `validation_token` is returned in the `canvas_start_quiz_attempt` response (prominently displayed in Markdown output). The AI agent reads it from the response and passes it as a parameter to `canvas_answer_quiz_question` and `canvas_complete_quiz_attempt`. No caching, no session state.
-
-**409 Conflict recovery:** If a quiz already has an in-progress attempt, the start attempt endpoint returns 409. `QuizzesRepository.startAttempt()` detects `error.code === "CONFLICT"`, falls back to `GET .../quizzes/:id/submission` to retrieve the existing attempt (including its `validation_token`), and returns it as a normal `Result<CanvasQuizSubmission>`. The tool handler sees no difference.
-
-### SSRF protection for `CANVAS_DOMAIN`
-
-Without validation, a misconfigured `CANVAS_DOMAIN=evil.com` could cause the server to send the Bearer token to an attacker-controlled server. The regex `/^[a-z0-9-]+\.instructure\.com$/i` ensures all requests go to Instructure-controlled infrastructure.
-
----
-
-## Extending the Server
-
-Adding a new Canvas domain requires **3 files** and **zero changes** to existing code:
-
-### 1. Create the repository
-
-```typescript
-// src/repositories/modules.ts
-import type { ICanvasClient } from "../services/canvasClient.js";
-import type { Result } from "../services/errors.js";
-import type { CanvasModule, PaginatedResponse } from "../types.js";
-
-export class ModulesRepository {
-  constructor(private readonly client: ICanvasClient) {}
-
-  async list(courseId: number): Promise<Result<PaginatedResponse<CanvasModule>>> {
-    return this.client.getPaginated(`/courses/${courseId}/modules`);
-  }
-}
-```
-
-### 2. Create the tool file
-
-```typescript
-// src/tools/modules.ts
-import { z } from "zod";
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { ModulesRepository } from "../repositories/modules.js";
-import { executeListTool } from "./base.js";
-import type { ClientResolver } from "../transport/types.js";
-
-export function register(server: McpServer, resolveClient: ClientResolver): void {
-  server.registerTool("canvas_list_modules", { /* ... */ }, async (params, extra) => {
-    const { client } = resolveClient(extra.sessionId);
-    const repo = new ModulesRepository(client);
-    return executeListTool(() => repo.list(params.course_id), formatter, params.response_format);
-  });
-}
-```
-
-### 3. Add one line to the registry
-
-```typescript
-// src/tools/index.ts
-import * as modules from "./modules.js";     // ← add this
-import type { ClientResolver } from "../transport/types.js";
-
-export function registerAllTools(server: McpServer, resolveClient: ClientResolver): void {
-  // ... existing registrations
-  modules.register(server, resolveClient);    // ← add this
-}
-```
-
-That's it. No other files change.
+- strict TypeScript without `any` shortcuts
+- `Result<T, E>`-first flow for operational errors
+- dependency injection via `ClientResolver`
+- no persistence of Canvas credentials in storage
+- test-first and mock-driven validation approach

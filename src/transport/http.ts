@@ -93,6 +93,11 @@ export async function startHttpServer(config: HttpServerConfig): Promise<{ stop:
   // ── Express app (DNS rebinding protection built-in for loopback) ───────────
   const app = createMcpExpressApp({ host });
 
+  // Liveness endpoint for container health checks.
+  app.get("/healthz", (_req, res) => {
+    res.status(200).json({ status: "ok" });
+  });
+
   // Middleware: bearer auth for MCP endpoint
   app.use("/mcp", bearerAuth(config.authToken));
 
