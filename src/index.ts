@@ -34,17 +34,30 @@ async function main(): Promise<void> {
     allowedOrigins,
   });
 
-  // Graceful shutdown
-  process.on("SIGINT", async () => {
-    console.error("[canvas-mcp-server] Desligando servidor HTTP...");
-    await stop();
-    process.exit(0);
+  let shuttingDown = false;
+  const shutdown = async (signal: string): Promise<void> => {
+    if (shuttingDown) {
+      return;
+    }
+    shuttingDown = true;
+
+    console.error(`[canvas-mcp-server] Shutdown iniciado (signal=${signal})`);
+    try {
+      await stop();
+      process.exit(0);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[canvas-mcp-server] Falha no shutdown: ${message}`);
+      process.exit(1);
+    }
+  };
+
+  process.on("SIGTERM", () => {
+    void shutdown("SIGTERM");
   });
 
-  process.on("SIGTERM", async () => {
-    console.error("[canvas-mcp-server] Desligando servidor HTTP (SIGTERM)...");
-    await stop();
-    process.exit(0);
+  process.on("SIGINT", () => {
+    void shutdown("SIGINT");
   });
 }
 

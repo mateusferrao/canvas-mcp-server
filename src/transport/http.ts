@@ -13,6 +13,7 @@ import type { ClientContext, ClientResolver, TransportBootstrap } from "./types.
 
 interface Session {
   transport: StreamableHTTPServerTransport;
+  server: McpServer;
   context: ClientContext;
   lastSeen: number;
 }
@@ -65,6 +66,7 @@ export async function startHttpServer(config: HttpServerConfig): Promise<{ stop:
     const now = Date.now();
     for (const [id, session] of sessions) {
       if (now - session.lastSeen > SESSION_IDLE_MS) {
+        void session.server.close().catch(() => { /* ignore */ });
         void session.transport.close().catch(() => { /* ignore */ });
         sessions.delete(id);
       }
@@ -87,11 +89,13 @@ export async function startHttpServer(config: HttpServerConfig): Promise<{ stop:
     return session.context;
   };
 
-  // ── MCP server factory ─────────────────────────────────────────────────────
-  const mcpServer = createServer({ resolveClient });
-
   // ── Express app (DNS rebinding protection built-in for loopback) ───────────
   const app = createMcpExpressApp({ host });
+
+  // Liveness endpoint for container health checks.
+  app.get("/healthz", (_req, res) => {
+    res.status(200).json({ status: "ok" });
+  });
 
   // Middleware: bearer auth for MCP endpoint
   app.use("/mcp", bearerAuth(config.authToken));
@@ -135,10 +139,13 @@ export async function startHttpServer(config: HttpServerConfig): Promise<{ stop:
       });
 
       const context: ClientContext = { client: canvasClient, token: canvasToken, domain };
-      sessions.set(sessionId, { transport, context, lastSeen: Date.now() });
 
-      // Connect transport to MCP server
-      await mcpServer.connect(transport);
+      // Each session gets its own McpServer instance — the SDK forbids reusing
+      // one server across multiple transports (throws "Already connected").
+      const sessionServer = createServer({ resolveClient });
+      sessions.set(sessionId, { transport, server: sessionServer, context, lastSeen: Date.now() });
+
+      await sessionServer.connect(transport);
       await transport.handleRequest(req, res, req.body);
       return;
     }
@@ -154,6 +161,7 @@ export async function startHttpServer(config: HttpServerConfig): Promise<{ stop:
 
     // DELETE /mcp — clean up session
     if (req.method === "DELETE") {
+      await session.server.close().catch(() => { /* ignore */ });
       await session.transport.close().catch(() => { /* ignore */ });
       sessions.delete(sessionId);
       res.status(200).json({ ok: true });
