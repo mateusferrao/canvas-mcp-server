@@ -1,4 +1,5 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { AssignmentsRepository } from "../../repositories/assignments.js";
 import { SubmissionsRepository } from "../../repositories/submissions.js";
 import { formatError } from "../../services/errors.js";
 import { SubmitAssignmentInputSchema } from "../../schemas/consolidated.js";
@@ -21,6 +22,24 @@ export function register(server: McpServer, resolveClient: ClientResolver): void
     async (params, extra) => {
       const parsed = SubmitAssignmentInputSchema.parse(params);
       const { client } = resolveClient(extra.sessionId);
+
+      const assignmentResult = await new AssignmentsRepository(client).get(
+        parsed.course_id,
+        parsed.assignment_id
+      );
+      if (!assignmentResult.ok) {
+        return { content: [{ type: "text", text: formatError(assignmentResult.error) }] };
+      }
+      const allowed = assignmentResult.value.submission_types;
+      if (!allowed.includes(parsed.submission_type)) {
+        return {
+          content: [{
+            type: "text",
+            text: `Erro [SUBMISSION_TYPE_NOT_ALLOWED]: Tipo "${parsed.submission_type}" não permitido para esta tarefa. Tipos aceitos: ${allowed.join(", ")}.`,
+          }],
+        };
+      }
+
       const repo = new SubmissionsRepository(client);
 
       const result = await repo.submit({
