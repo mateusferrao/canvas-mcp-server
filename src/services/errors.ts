@@ -23,6 +23,12 @@ export function mapApiError(error: unknown): CanvasError {
     const status = error.response?.status;
 
     switch (status) {
+      case 400:
+        return {
+          code: "BAD_REQUEST",
+          message: `Requisição inválida (400): ${error.response?.data ? JSON.stringify(error.response.data) : error.message}`,
+          status,
+        };
       case 401:
         return {
           code: "UNAUTHORIZED",
